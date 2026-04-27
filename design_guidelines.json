@@ -1,0 +1,99 @@
+{
+  "theme": "Light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) blended with Archetype 1 Warmth (Organic & Earthy)",
+  "colors": {
+    "primary": "#4DA3FF",
+    "primary_hover": "#3B82F6",
+    "accent": "#FFA94D",
+    "accent_hover": "#F97316",
+    "background": "#F7FAFC",
+    "surface": "#FFFFFF",
+    "success": "#22C55E",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+    "text_primary": "#0F172A",
+    "text_secondary": "#64748B",
+    "border": "#E2E8F0"
+  },
+  "typography": {
+    "heading_font": "Manrope",
+    "body_font": "IBM Plex Sans",
+    "google_fonts_cdn": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap",
+    "hierarchy": {
+      "h1": "text-4xl md:text-5xl font-extrabold tracking-tight",
+      "h2": "text-2xl md:text-3xl font-bold tracking-tight",
+      "h3": "text-xl md:text-2xl font-bold",
+      "h4": "text-lg font-semibold",
+      "body": "text-base font-normal",
+      "caption": "text-sm text-slate-500 font-medium",
+      "overline": "text-xs font-bold uppercase tracking-wider text-slate-500"
+    }
+  },
+  "border_radius": {
+    "sm": "rounded",
+    "md": "rounded-md",
+    "lg": "rounded-xl",
+    "full": "rounded-full"
+  },
+  "shadows": {
+    "soft": "shadow-sm",
+    "card": "shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]",
+    "floating": "shadow-lg"
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "clean outline, consistent stroke width (2px)"
+  },
+  "microinteractions": {
+    "button_press": "active:scale-95 transition-transform duration-150 ease-out",
+    "hover_lift": "hover:-translate-y-0.5 hover:shadow-md transition-all duration-200",
+    "capture_flash": "animate-[flash_0.3s_ease-out]",
+    "page_transition": "animate-in fade-in slide-in-from-bottom-2 duration-300"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#4DA3FF] text-white hover:bg-blue-500 rounded-xl px-4 py-2 font-semibold shadow-sm transition-all",
+      "accent": "bg-[#FFA94D] text-white hover:bg-orange-400 rounded-xl px-4 py-2 font-semibold shadow-sm transition-all",
+      "mobile_capture": "w-20 h-20 rounded-full bg-white border-[6px] border-[#FFA94D] shadow-lg active:scale-90 transition-transform flex items-center justify-center"
+    },
+    "badges": {
+      "present": "bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-semibold",
+      "absent": "bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-semibold",
+      "half_day": "bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-xs font-semibold",
+      "gps_pill": "bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 border border-slate-200"
+    },
+    "watermark_overlay": "absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-sm rounded-lg p-3 text-white text-xs font-mono border border-white/20 flex flex-col gap-1 shadow-lg",
+    "selfie_thumbnail": "relative w-16 h-16 rounded-lg overflow-hidden border-2 border-white shadow-md object-cover"
+  },
+  "layouts": {
+    "login": {
+      "desktop": "Split screen: Left 40% clean auth form with centered logo and elegant Bengali tagline. Right 60% features the interior design image with a subtle #4DA3FF/#FFA94D duotone or gradient overlay.",
+      "mobile": "Single column stacking: Aesthetic header block with logo, followed by a clean white card form overlapping the header."
+    },
+    "app_shell": {
+      "desktop": "Fixed left sidebar (w-64) with brand logo at top, active states highlighted in #4DA3FF bg. Main content area has a subtle #F7FAFC background.",
+      "mobile": "Fixed bottom navigation bar with 5 even items (Home, Visits, Mark, Payroll, Menu). The 'Mark Attendance/Visit' button should be centrally prominent (floating or colored #FFA94D)."
+    },
+    "dashboard": {
+      "desktop": "Bento grid layout. 3-4 top KPI cards (Total Employees, Present Today, Active Sites). Below, split view: Recent Field Visits (List) and Payroll/Expenses chart.",
+      "mobile": "Vertical stack. Welcome banner, horizontal scrollable KPI cards, list of Today's Action Items."
+    },
+    "field_visit_capture": {
+      "mobile_first": "Full-viewport camera interface. Dark UI overlay. Top bar with 'Back' and GPS Status Pill. Bottom area with the large Mobile Capture shutter button. Once captured, shifts to Form View (site photos upload, floor plan, requirements text)."
+    },
+    "payroll_table": {
+      "desktop": "Data-dense Shadcn Table. Sticky header. Month picker in the top right. Rows show breakdown: Base, Incentives, Deductions, Net. Action column for 'Download Payslip PDF'."
+    }
+  },
+  "media": {
+    "logo": "https://customer-assets.emergentagent.com/job_032cfb7b-1dca-4592-80d4-e7ef37892f05/artifacts/mn589atq_logo.png",
+    "login_background": "https://images.unsplash.com/photo-1703867110051-a0eb1e77b967?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBpbnRlcmlvciUyMGRlc2lnbiUyMGxpdmluZyUyMHJvb218ZW58MHx8fHwxNzc3MzI3Mjk3fDA&ixlib=rb-4.1.0&q=85"
+  },
+  "testing": {
+    "rules": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case based on role (e.g., data-testid='login-submit-button', data-testid='mark-attendance-button')."
+  },
+  "brand": {
+    "tagline": "ঘর নয়, স্বপ্ন সাজাই আমরা",
+    "tone": "Trusted daily-use business tool. Warm, confident, professional."
+  }
+}
