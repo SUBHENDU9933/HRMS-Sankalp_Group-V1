@@ -8,6 +8,28 @@ export const supabase = createClient(URL, KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
 
+/**
+ * Create a NEW auth user without disturbing the current (admin) session.
+ * Uses an isolated client whose session is never persisted.
+ * Returns { user, error } from supabase.auth.signUp.
+ */
+export async function signUpIsolated({ email, password, name }) {
+  const tmp = createClient(URL, KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: `sb-iso-${(crypto.randomUUID && crypto.randomUUID()) || Date.now()}`,
+    },
+  });
+  const { data, error } = await tmp.auth.signUp({
+    email: email.toLowerCase(),
+    password,
+    options: { data: { name } },
+  });
+  return { user: data?.user, error };
+}
+
 /** Upload a data URL (e.g. "data:image/png;base64,...") and return the public URL. */
 export async function uploadDataUrl(dataUrl, folder = "uploads") {
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);

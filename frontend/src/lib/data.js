@@ -2,7 +2,7 @@
  * Data access layer — thin wrappers around supabase.
  * Every screen uses these; RLS enforces security.
  */
-import { supabase, uploadDataUrl, uploadFile } from "./supabase";
+import { supabase, uploadDataUrl, uploadFile, signUpIsolated } from "./supabase";
 export { uploadDataUrl, uploadFile };
 
 const thr = (r) => { if (r.error) throw r.error; return r.data; };
@@ -18,16 +18,24 @@ export async function listEmployees({ q = "", role = "", status = "" } = {}) {
 export async function getEmployee(id) {
   return thr(await supabase.from("employees").select("*").eq("id", id).single());
 }
-/** Create employee — calls auth.signUp for the new user then create_employee_row RPC */
+/** Create employee — creates auth user (in isolated client) then create_employee_row RPC */
 export async function createEmployee({ email, password, ...fields }) {
-  // 1. Create auth user via signUp (email confirmation must be disabled in project)
-  const { error: signErr } = await supabase.auth.signUp({
-    email: email.toLowerCase(), password,
-    options: { data: { name: fields.name } },
+  // 1. Create auth user using an ISOLATED client so the admin's session is NOT rotated.
+  const { error: signErr } = await signUpIsolated({
+    email, password, name: fields.name,
   });
-  // NOTE: signUp rotates the current session. We need to re-sign the admin back in.
-  // Solution: reuse existing admin session by restoring from storage.
-  if (signErr && !String(signErr.message || "").includes("already registered")) throw signErr;
+  if (signErr && !/already\s+registered|already\s+been\s+registered|user_already_exists|exists/i.test(signErr.message || "")) {
+    // Friendlier messages
+    const m = (signErr.message || "").toLowerCase();
+    const status = signErr.status || signErr.code;
+    if (status === 429 || m.includes("rate") || m.includes("too many")) {
+      throw new Error("Too many signups in a short time. Wait 5–10 minutes and try again. (Supabase free-tier rate limit)");
+    }
+    if (m.includes("password") && m.includes("6")) {
+      throw new Error("Password must be at least 6 characters.");
+    }
+    throw new Error(signErr.message || "Failed to create auth user");
+  }
 
   // 2. Create employees row via SECURITY DEFINER RPC (admin-only)
   const rpcArgs = {
