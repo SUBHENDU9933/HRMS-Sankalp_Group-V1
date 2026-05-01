@@ -1,5 +1,13 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Legacy FastAPI backend (Supabase-only architecture — kept for preview env only)
+/backend/
+/tests/
+/test_reports/
+/memory/test_credentials.md
+/yarn.lock
+test_result.md
+
 # IDE and editors
 .idea/
 .vscode/
@@ -77,6 +85,10 @@ agenthub/agents/youtube/db
 .cache/
 
 memory/test_credentials.md
+
+# Allow env example templates
+!.env.example
+!**/.env.example
 
 # Mobile development
 android-sdk/-e 
