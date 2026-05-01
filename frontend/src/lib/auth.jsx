@@ -1,47 +1,71 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "./api";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { supabase } from "./supabase";
 
 const AuthCtx = createContext(null);
 
+async function fetchMe(email) {
+  if (!email) return null;
+  const { data, error } = await supabase
+    .from("employees")
+    .select("*")
+    .ilike("email", email)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sk_user") || "null"); }
-    catch { return null; }
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem("sk_token");
-    if (!token) { setLoading(false); return; }
-    api.get("/auth/me")
-      .then((r) => { setUser(r.data); localStorage.setItem("sk_user", JSON.stringify(r.data)); })
-      .catch(() => { localStorage.removeItem("sk_token"); localStorage.removeItem("sk_user"); setUser(null); })
-      .finally(() => setLoading(false));
+  const refresh = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const email = session?.user?.email;
+    if (!email) { setUser(null); return null; }
+    const emp = await fetchMe(email);
+    setUser(emp);
+    return emp;
   }, []);
 
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user?.email) { setUser(null); return; }
+      fetchMe(session.user.email).then(setUser).catch(() => setUser(null));
+    });
+    return () => sub?.subscription?.unsubscribe?.();
+  }, [refresh]);
+
   const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("sk_token", data.access_token);
-    localStorage.setItem("sk_user", JSON.stringify(data.user));
-    setUser(data.user);
-    return data.user;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(), password,
+    });
+    if (error) throw error;
+    const emp = await fetchMe(data.user.email);
+    if (!emp) {
+      await supabase.auth.signOut();
+      throw new Error("No employee record linked to this login. Contact admin.");
+    }
+    if (emp.status !== "active") {
+      await supabase.auth.signOut();
+      throw new Error("Account inactive");
+    }
+    setUser(emp);
+    return emp;
   };
 
-  const logout = () => {
-    localStorage.removeItem("sk_token");
-    localStorage.removeItem("sk_user");
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
-  const refresh = async () => {
-    const { data } = await api.get("/auth/me");
-    localStorage.setItem("sk_user", JSON.stringify(data));
-    setUser(data);
-    return data;
-  };
-
   return (
-    <AuthCtx.Provider value={{ user, loading, login, logout, refresh, isAdmin: user?.role === "admin", isManager: user?.role === "manager", isEmployee: user?.role === "employee" }}>
+    <AuthCtx.Provider value={{
+      user, loading, login, logout, refresh,
+      isAdmin: user?.role === "admin",
+      isManager: user?.role === "manager",
+      isEmployee: user?.role === "employee",
+    }}>
       {children}
     </AuthCtx.Provider>
   );
