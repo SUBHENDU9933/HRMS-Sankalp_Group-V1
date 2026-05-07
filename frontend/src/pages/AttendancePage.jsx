@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import SelfieCapture from "@/components/SelfieCapture";
-import { listAttendance, upsertAttendance, updateAttendance, deleteAttendance, listEmployees, uploadDataUrl } from "@/lib/data";
+import AttendanceCalendar from "@/components/AttendanceCalendar";
+import {
+  listAttendance, upsertAttendance, updateAttendance, deleteAttendance,
+  listEmployees, uploadDataUrl, getCompanySettings,
+} from "@/lib/data";
 import { fmtDateTime, todayISO, getGPS } from "@/lib/utils-app";
-import { Camera, MapPin, CheckCircle2, AlertCircle, Clock, Trash2 } from "lucide-react";
+import { haversineMeters, isInsideOffice, fmtDistance } from "@/lib/geo";
+import { Camera, MapPin, CheckCircle2, AlertCircle, Clock, Trash2, Building2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+
+const Y = new Date().getFullYear();
+const M = new Date().getMonth() + 1;
 
 export default function AttendancePage() {
   const { user, isAdmin, isManager } = useAuth();
@@ -18,6 +26,7 @@ export default function AttendancePage() {
   const [employees, setEmployees] = useState([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [settings, setSettings] = useState(null);
 
   const loadMe = async () => {
     const rows = await listAttendance({ employee_id: user.id });
@@ -30,18 +39,60 @@ export default function AttendancePage() {
     setAll(rows);
   };
 
-  useEffect(() => { if (user) loadMe(); }, [user]);
+  useEffect(() => { if (user) { loadMe(); getCompanySettings().then(setSettings).catch(() => {}); } }, [user]); // eslint-disable-line
   useEffect(() => { if (canAdmin) listEmployees({ status: "active" }).then(setEmployees); }, [canAdmin]);
-  useEffect(() => { loadAll(); }, [empId, dateFrom, dateTo]);
+  useEffect(() => { loadAll(); }, [empId, dateFrom, dateTo]); // eslint-disable-line
+
+  /** Common save logic — handles geofence check for office attendance. */
+  const saveAttendance = async ({ status, selfie_url, gps }) => {
+    let underReview = false, distance = null, label = "🏢 @ Sankalp Office";
+    if (settings) label = `🏢 @ ${settings.name || "Office"}`;
+
+    if (gps?.latitude != null && settings?.office_lat != null) {
+      distance = haversineMeters(gps.latitude, gps.longitude, settings.office_lat, settings.office_lng);
+      if (!isInsideOffice(gps.latitude, gps.longitude, settings)) {
+        underReview = true;
+        label = `🚧 Outside office (${fmtDistance(distance)} away) — under review`;
+      }
+    } else if (gps?.latitude == null) {
+      underReview = true;
+      label = "📡 GPS unavailable — under review";
+    }
+
+    await upsertAttendance({
+      employee_id: user.id,
+      date: todayISO(),
+      status,
+      selfie_url,
+      latitude: gps?.latitude,
+      longitude: gps?.longitude,
+      notes: undefined,
+    });
+    // Now patch with extra fields (some may not exist in older DB; ignore failures gracefully)
+    try {
+      const justCreated = await listAttendance({ employee_id: user.id });
+      const t = justCreated.find(a => a.date === todayISO());
+      if (t) {
+        await updateAttendance(t.id, {
+          attendance_type: "office",
+          location_label: label,
+          distance_m: distance,
+          under_review: underReview,
+        });
+      }
+    } catch { /* schema not migrated yet */ }
+
+    if (underReview) toast("Submitted for review (outside geofence)", { icon: "⚠️" });
+    else toast.success("Attendance marked");
+    await loadMe(); if (canAdmin) await loadAll();
+  };
 
   const onCapture = async (dataUrl, gps) => {
     setShowCapture(false);
     setBusy(true);
     try {
       const url = await uploadDataUrl(dataUrl, "attendance");
-      await upsertAttendance({ employee_id: user.id, date: todayISO(), status: "present", selfie_url: url, latitude: gps?.latitude, longitude: gps?.longitude });
-      toast.success("Attendance marked");
-      await loadMe(); if (canAdmin) await loadAll();
+      await saveAttendance({ status: "present", selfie_url: url, gps });
     } catch (e) { toast.error("Failed: " + e.message); }
     finally { setBusy(false); }
   };
@@ -49,70 +100,119 @@ export default function AttendancePage() {
     setBusy(true);
     try {
       let gps = null; try { gps = await getGPS(); } catch {}
-      await upsertAttendance({ employee_id: user.id, date: todayISO(), status, latitude: gps?.latitude, longitude: gps?.longitude });
-      toast.success("Marked " + status.replace("_", " "));
-      await loadMe();
+      await saveAttendance({ status, gps });
     } catch { toast.error("Failed"); }
     finally { setBusy(false); }
   };
   const updateStatus = async (id, status) => { await updateAttendance(id, { status }); toast.success("Updated"); await loadAll(); };
+  const approve = async (id) => { await updateAttendance(id, { under_review: false, status: "present" }); toast.success("Approved"); await loadAll(); };
   const del = async (id) => { if (!window.confirm("Delete this record?")) return; await deleteAttendance(id); toast.success("Deleted"); await loadAll(); };
 
-  const StatusIcon = ({ s }) => s === "present" ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : s === "absent" ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Clock className="w-4 h-4 text-amber-500" />;
+  const StatusIcon = ({ s }) => s === "present" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : s === "absent" ? <AlertCircle className="w-4 h-4 text-rose-500" /> : <Clock className="w-4 h-4 text-amber-500" />;
+
+  const reviewCount = canAdmin ? all.filter(a => a.under_review).length : 0;
 
   return (
     <div className="sk-page space-y-5" data-testid="attendance-page">
       <div>
-        <h1 className="font-heading text-2xl md:text-3xl font-extrabold">Attendance</h1>
-        <p className="text-sm text-slate-500 mt-1">Selfie + GPS verified daily attendance</p>
+        <h1 className="font-heading text-2xl md:text-3xl font-extrabold flex items-center gap-2"><span>✅</span> Attendance</h1>
+        <p className="text-sm text-slate-500 mt-1">Selfie + GPS verified daily attendance with office geofence.</p>
       </div>
-      <div className="sk-card p-5">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+
+      {/* Today's strip */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4DA3FF] via-[#6BB6FF] to-[#FFA94D] p-5 text-white shadow-lg" data-testid="today-card">
+        <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long" })}</div>
+            <div className="text-xs font-bold uppercase tracking-wider opacity-90">Today — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long" })}</div>
             {today ? (
-              <div className="mt-2 flex items-center gap-2"><StatusIcon s={today.status} /><span className="font-heading text-2xl font-extrabold capitalize">{today.status.replace("_", " ")}</span><span className="text-xs text-slate-500">at {fmtDateTime(today.check_in_time)}</span></div>
-            ) : <div className="font-heading text-2xl font-extrabold text-slate-400 mt-2">Not marked yet</div>}
+              <>
+                <div className="font-heading text-3xl md:text-4xl font-extrabold mt-2 capitalize flex items-center gap-2">
+                  {today.status === "present" ? "✅" : today.status === "half_day" ? "🟡" : "🔴"} {today.status.replace("_", " ")}
+                  {today.under_review && <span className="text-xs bg-white/25 backdrop-blur rounded-full px-2 py-1 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Under review</span>}
+                </div>
+                <div className="text-xs mt-2 opacity-95 flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> {fmtDateTime(today.check_in_time)}</div>
+                {today.location_label && <div className="text-xs mt-1 opacity-95">{today.location_label}</div>}
+              </>
+            ) : (
+              <div className="font-heading text-3xl md:text-4xl font-extrabold mt-2 opacity-90">Not marked yet</div>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => setShowCapture(true)} disabled={busy} className="sk-btn-accent" data-testid="mark-attendance-button"><Camera className="w-4 h-4" /> {today ? "Re-mark" : "Mark with Selfie"}</button>
-            <button onClick={() => markStatus("half_day")} disabled={busy} className="sk-btn-ghost text-amber-600 border-amber-200">Half-day</button>
-            <button onClick={() => markStatus("absent")} disabled={busy} className="sk-btn-ghost text-red-600 border-red-200">Absent</button>
+            <button onClick={() => setShowCapture(true)} disabled={busy} className="bg-white text-[#F97316] hover:bg-white/95 font-extrabold rounded-xl px-5 py-3 shadow-lg active:scale-95 transition flex items-center gap-2" data-testid="mark-attendance-button">
+              <Camera className="w-4 h-4" /> {today ? "Re-mark" : "Mark with Selfie"}
+            </button>
+            <button onClick={() => markStatus("half_day")} disabled={busy} className="bg-white/20 hover:bg-white/30 backdrop-blur text-white font-bold rounded-xl px-3 py-2 text-sm">🟡 Half-day</button>
+            <button onClick={() => markStatus("absent")} disabled={busy} className="bg-white/20 hover:bg-white/30 backdrop-blur text-white font-bold rounded-xl px-3 py-2 text-sm">🔴 Absent</button>
           </div>
         </div>
         {today?.selfie_url && (
-          <div className="mt-4 flex gap-3 items-center">
-            <img src={today.selfie_url} alt="" className="w-20 h-20 rounded-lg object-cover border" />
-            {today.latitude != null && <span className="gps-pill"><MapPin className="w-3.5 h-3.5 text-[#FFA94D]" />{today.latitude.toFixed(5)}, {today.longitude.toFixed(5)}</span>}
+          <div className="relative mt-4 flex flex-wrap gap-3 items-center">
+            <img src={today.selfie_url} alt="" className="w-20 h-20 rounded-xl object-cover ring-2 ring-white/40" />
+            {today.latitude != null && (
+              <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-mono px-3 py-1.5 rounded-full">
+                <MapPin className="w-3.5 h-3.5" />{today.latitude.toFixed(5)}, {today.longitude.toFixed(5)}
+                {today.distance_m != null && <span className="opacity-90">· {fmtDistance(today.distance_m)} from office</span>}
+              </span>
+            )}
           </div>
         )}
       </div>
+
+      {/* Calendar + summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="sk-card p-5 lg:col-span-2">
+          <h2 className="font-heading text-lg font-extrabold mb-3 flex items-center gap-2"><span>📅</span> My month at a glance</h2>
+          <AttendanceCalendar year={Y} month={M} records={me.filter(a => a.date.startsWith(`${Y}-${String(M).padStart(2, "0")}`))} />
+        </div>
+        <div className="sk-card p-5">
+          <h2 className="font-heading text-lg font-extrabold mb-3 flex items-center gap-2"><Building2 className="w-5 h-5 text-[#4DA3FF]" /> Office</h2>
+          {settings ? (
+            <div className="text-sm space-y-1.5 text-slate-700">
+              <div className="font-bold">{settings.name}</div>
+              {settings.address && <div className="text-xs text-slate-500">{settings.address}</div>}
+              <div className="text-xs text-slate-500">📍 {Number(settings.office_lat).toFixed(5)}, {Number(settings.office_lng).toFixed(5)}</div>
+              <div className="text-xs text-slate-500">Geofence radius: <span className="font-bold text-slate-700">{settings.office_radius_m} m</span></div>
+              <div className="text-xs text-slate-500">In-time: {(settings.office_in_time || "").slice(0,5)}</div>
+            </div>
+          ) : <div className="text-xs text-slate-400">Settings not loaded.</div>}
+        </div>
+      </div>
+
+      {/* My history table */}
       <div className="sk-card p-5">
-        <div className="font-heading font-bold mb-3">My History</div>
+        <div className="font-heading font-extrabold mb-3">My history</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b">
-              <th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Check-in</th><th className="py-2 pr-4">Selfie</th><th className="py-2 pr-4">GPS</th>
+              <th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Check-in</th><th className="py-2 pr-4">Location</th><th className="py-2 pr-4">Selfie</th>
             </tr></thead>
             <tbody>
               {me.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-slate-400">No records yet</td></tr>}
               {me.map(a => (
                 <tr key={a.id} className="border-b border-slate-100">
                   <td className="py-2 pr-4 font-medium">{a.date}</td>
-                  <td className="py-2 pr-4"><span className={`sk-badge ${a.status === "present" ? "sk-badge-success" : a.status === "absent" ? "sk-badge-danger" : "sk-badge-warning"}`}><StatusIcon s={a.status} />{a.status.replace("_", " ")}</span></td>
+                  <td className="py-2 pr-4">
+                    <span className={`sk-badge ${a.status === "present" ? "sk-badge-success" : a.status === "absent" ? "sk-badge-danger" : "sk-badge-warning"}`}><StatusIcon s={a.status} />{a.status.replace("_", " ")}</span>
+                    {a.under_review && <span className="ml-1 sk-badge bg-amber-100 text-amber-800">review</span>}
+                  </td>
                   <td className="py-2 pr-4 text-slate-500">{a.check_in_time ? fmtDateTime(a.check_in_time) : "—"}</td>
+                  <td className="py-2 pr-4 text-xs text-slate-500">{a.location_label || (a.latitude != null ? `${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}` : "—")}</td>
                   <td className="py-2 pr-4">{a.selfie_url ? <a href={a.selfie_url} target="_blank" rel="noreferrer"><img src={a.selfie_url} className="w-9 h-9 rounded object-cover border" alt="" /></a> : "—"}</td>
-                  <td className="py-2 pr-4 text-xs text-slate-500 font-mono">{a.latitude != null ? `${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}` : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
       {canAdmin && (
         <div className="sk-card p-5">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <div className="font-heading font-bold">All Attendance Records</div>
+            <div className="font-heading font-extrabold flex items-center gap-2">
+              👥 All attendance records
+              {reviewCount > 0 && <span className="sk-badge bg-amber-100 text-amber-800">{reviewCount} pending review</span>}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <select value={empId} onChange={e => setEmpId(e.target.value)} className="sk-input w-auto">
                 <option value="">All Employees</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -124,22 +224,23 @@ export default function AttendancePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b">
-                <th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Employee</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">GPS</th><th className="py-2 pr-4">Selfie</th><th className="py-2 pr-4 text-right">Actions</th>
+                <th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Employee</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Location</th><th className="py-2 pr-4">Selfie</th><th className="py-2 pr-4 text-right">Actions</th>
               </tr></thead>
               <tbody>
                 {all.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-slate-400">No records</td></tr>}
                 {all.map(a => (
-                  <tr key={a.id} className="border-b border-slate-100">
+                  <tr key={a.id} className={`border-b border-slate-100 ${a.under_review ? "bg-amber-50/40" : ""}`}>
                     <td className="py-2 pr-4">{a.date}</td>
-                    <td className="py-2 pr-4 font-medium">{a.employee_name}</td>
+                    <td className="py-2 pr-4 font-semibold">{a.employee_name}</td>
                     <td className="py-2 pr-4">
                       <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)} className="sk-input w-auto py-1 text-xs">
                         <option value="present">Present</option><option value="half_day">Half-day</option><option value="absent">Absent</option>
                       </select>
+                      {a.under_review && <div className="mt-1"><button onClick={() => approve(a.id)} className="text-[10px] font-bold text-emerald-600 hover:underline">Approve →</button></div>}
                     </td>
-                    <td className="py-2 pr-4 text-xs text-slate-500 font-mono">{a.latitude != null ? `${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}` : "—"}</td>
+                    <td className="py-2 pr-4 text-xs text-slate-500">{a.location_label || (a.latitude != null ? `${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}` : "—")}{a.distance_m != null && <div className="opacity-70">{fmtDistance(a.distance_m)} from office</div>}</td>
                     <td className="py-2 pr-4">{a.selfie_url ? <a href={a.selfie_url} target="_blank" rel="noreferrer"><img src={a.selfie_url} className="w-9 h-9 rounded object-cover border" alt="" /></a> : "—"}</td>
-                    <td className="py-2 pr-4 text-right">{isAdmin && <button onClick={() => del(a.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>}</td>
+                    <td className="py-2 pr-4 text-right">{isAdmin && <button onClick={() => del(a.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>}</td>
                   </tr>
                 ))}
               </tbody>

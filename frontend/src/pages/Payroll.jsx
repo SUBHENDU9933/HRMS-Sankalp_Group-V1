@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { listPayroll, generatePayroll, listEmployees, getEmployee } from "@/lib/data";
+import { listPayroll, generatePayroll, listEmployees, getEmployee, getCompanySettings } from "@/lib/data";
 import { generatePayslipPdf } from "@/lib/pdf";
 import { fmtINR, MONTHS } from "@/lib/utils-app";
 import { Wallet, Download, Sparkles, Loader2 } from "lucide-react";
@@ -41,8 +41,11 @@ export default function Payroll() {
 
   const download = async (p) => {
     try {
-      const emp = await getEmployee(p.employee_id);
-      generatePayslipPdf(p, emp);
+      const [emp, co] = await Promise.all([
+        getEmployee(p.employee_id),
+        getCompanySettings().catch(() => null),
+      ]);
+      await generatePayslipPdf(p, emp, co);
     } catch (e) { toast.error("Download failed: " + e.message); }
   };
 

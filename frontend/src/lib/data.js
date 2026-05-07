@@ -184,6 +184,28 @@ export async function deleteExpense(id) {
   return thr(await supabase.from("expenses").delete().eq("id", id));
 }
 
+/* ---------------- company settings ---------------- */
+export async function getCompanySettings() {
+  const r = await supabase.from("company_settings").select("*").eq("id", "default").maybeSingle();
+  if (r.error) throw r.error;
+  return r.data || null;
+}
+export async function updateCompanySettings(patch) {
+  return thr(await supabase.from("company_settings").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", "default").select().single());
+}
+
+/* ---------------- live salary (RPCs) ---------------- */
+export async function liveSalary(employee_id, year, month) {
+  const { data, error } = await supabase.rpc("live_salary", { p_employee_id: employee_id, p_year: Number(year), p_month: Number(month) });
+  if (error) throw error;
+  return data?.[0] || { present_days: 0, half_days: 0, absent_days: 0, base_salary: 0, allowance: 0, deductions: 0, advance: 0, net_live: 0 };
+}
+export async function livePayrollTotal(year, month) {
+  const { data, error } = await supabase.rpc("live_payroll_total", { p_year: Number(year), p_month: Number(month) });
+  if (error) throw error;
+  return data?.[0] || { employee_count: 0, total_base: 0, total_allowance: 0, total_advance: 0, total_deductions: 0, total_net: 0 };
+}
+
 /* ---------------- dashboard (client-side aggregation) ---------------- */
 export async function getDashboard(user) {
   const today = new Date().toISOString().slice(0, 10);
