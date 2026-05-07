@@ -25,99 +25,108 @@ export async function generatePayslipPdf(p, emp, co = null, disbs = []) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
 
-  // ====== HEADER DECORATIONS (compact, contained in top 30mm) ======
-  drawHeaderDecorations(doc, W);
+  // ====================================================================
+  //  HEADER — matches reference design:
+  //  Top thin orange band → centered logo+name+tagline → 4-col contact row → bottom orange thick + navy thin band
+  // ====================================================================
+  const HDR_H = 64;            // total header height (mm)
 
-  // ====== LOGO ======
-  let nameLeft = 14;
+  // Top thin orange band
+  doc.setFillColor(...ORANGE);
+  doc.rect(0, 0, W, 2.4, "F");
+
+  // ----- Logo -----
+  let nameLeft = 18;
   if (co?.logo_url) {
     try {
       const dataUrl = await urlToDataUrl(co.logo_url);
       const fmtL = (dataUrl.match(/^data:image\/(\w+)/) || [])[1] || "png";
       const f = fmtL.toUpperCase() === "JPG" ? "JPEG" : fmtL.toUpperCase();
-      doc.addImage(dataUrl, f, 14, 10, 26, 26, undefined, "FAST");
-      nameLeft = 46;
-      doc.setDrawColor(...NAVY);
-      doc.setLineWidth(0.5);
-      doc.line(nameLeft - 3, 12, nameLeft - 3, 36);
+      doc.addImage(dataUrl, f, 14, 7, 28, 28, undefined, "FAST");
+      nameLeft = 50;
     } catch { /* skip */ }
   }
 
-  // ====== COMPANY NAME ======
+  // Vertical thin separator (light gray)
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.4);
+  doc.line(nameLeft - 4, 7, nameLeft - 4, 36);
+
+  // ----- Company name (large navy) -----
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
   const name = co?.name || "Sankalp Interior Solution";
-  let nameSize = 21;
-  if (name.length > 32) nameSize = 18;
-  if (name.length > 40) nameSize = 15;
+  // Auto-fit company name across remaining width (right margin 14)
+  let nameSize = 26;
   doc.setFontSize(nameSize);
-  doc.text(name, nameLeft, 21);
+  let nameW = doc.getTextWidth(name);
+  while (nameW > W - nameLeft - 18 && nameSize > 14) {
+    nameSize -= 1;
+    doc.setFontSize(nameSize);
+    nameW = doc.getTextWidth(name);
+  }
+  doc.text(name, nameLeft, 18);
 
-  const nameWidth = doc.getTextWidth(name);
-  doc.setDrawColor(...ORANGE);
-  doc.setLineWidth(0.7);
-  doc.line(nameLeft, 24, Math.min(nameLeft + nameWidth + 8, W - 14), 24);
-
-  // ====== TAGLINE (orange italic) — only ASCII (jsPDF default font has no Bengali glyphs) ======
+  // ----- Tagline with orange dashes on either side (centred under name) -----
   if (co?.tagline && /^[\x20-\x7E]+$/.test(co.tagline)) {
-    doc.setTextColor(...ORANGE);
-    doc.setFont("helvetica", "italic");
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(co.tagline, nameLeft, 31);
+    const tw = doc.getTextWidth(co.tagline);
+    const tagCenter = nameLeft + nameW / 2;
+    const tagY = 25;
+    // Orange dashes
+    doc.setDrawColor(...ORANGE);
+    doc.setLineWidth(1.2);
+    const dashLen = 12;
+    doc.line(tagCenter - tw / 2 - dashLen - 3, tagY - 1, tagCenter - tw / 2 - 3, tagY - 1);
+    doc.line(tagCenter + tw / 2 + 3, tagY - 1, tagCenter + tw / 2 + dashLen + 3, tagY - 1);
+    // Tagline text
+    doc.text(co.tagline, tagCenter, tagY, { align: "center" });
   }
 
-  // ====== CONTACT ROW (website · phone · email) — placed BELOW header decorations ======
-  let cy = 44;
+  // ----- Contact row (4 columns: phone · email · website · pin) -----
+  const cy0 = 38;
   const contacts = [];
-  if (co?.website) contacts.push({ icon: "globe", text: co.website });
-  if (co?.phone)   contacts.push({ icon: "phone", text: co.phone });
-  if (co?.email)   contacts.push({ icon: "mail",  text: co.email });
+  if (co?.phone)   contacts.push({ icon: "phone", line1: co.phone, line2: "Phone" });
+  if (co?.email)   contacts.push({ icon: "mail",  line1: co.email, line2: "Email Address" });
+  if (co?.website) contacts.push({ icon: "globe", line1: co.website, line2: "Website" });
+  if (co?.address) contacts.push({ icon: "pin",   line1: co.address, line2: " " });
 
   if (contacts.length > 0) {
     const colWidth = (W - 28) / contacts.length;
     contacts.forEach((c, i) => {
       const x = 14 + i * colWidth;
-      drawIconCircle(doc, x + 4, cy, c.icon);
-      doc.setTextColor(...TEXT_DARK);
-      doc.setFont("helvetica", "normal");
+      // Solid navy circle with white icon
+      drawSolidIconCircle(doc, x + 5, cy0 + 4, c.icon);
+      // line1 (top, navy bold)
+      doc.setTextColor(...NAVY);
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
-      doc.text(c.text, x + 11, cy + 1.2, { maxWidth: colWidth - 13 });
-      // Vertical separator between contacts (except last)
+      doc.text(c.line1, x + 12.5, cy0 + 2.5, { maxWidth: colWidth - 14 });
+      // line2 (bottom, gray)
+      doc.setTextColor(120, 120, 120);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      if (c.line2 && c.line2.trim()) {
+        doc.text(c.line2, x + 12.5, cy0 + 7, { maxWidth: colWidth - 14 });
+      }
+      // Vertical separator
       if (i < contacts.length - 1) {
-        doc.setDrawColor(...BLUE_LINE);
+        doc.setDrawColor(220, 220, 220);
         doc.setLineWidth(0.3);
-        doc.line(x + colWidth - 2, cy - 4, x + colWidth - 2, cy + 4);
+        doc.line(x + colWidth - 2, cy0 - 1, x + colWidth - 2, cy0 + 9);
       }
     });
-    cy += 10;
   }
 
-  // ====== ADDRESS ROW (centered, with pin icon) ======
-  if (co?.address) {
-    const addrText = co.address;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const tw = doc.getTextWidth(addrText);
-    const ax = (W - tw) / 2;
-    drawIconCircle(doc, ax - 7, cy, "pin");
-    doc.setTextColor(...TEXT_DARK);
-    doc.text(addrText, ax, cy + 1.2);
-    cy += 8;
-  }
-
-  // ====== DECORATIVE WAVE BELOW HEADER ======
-  // Orange wave bottom-left
+  // ----- Bottom band: orange thick + navy thin -----
   doc.setFillColor(...ORANGE);
-  doc.ellipse(0, cy + 4, 90, 14, "F");
-  // Inner white to make it a wave
-  doc.setFillColor(...WHITE);
-  doc.ellipse(0, cy + 1, 86, 12, "F");
-  // Blue accent on right
+  doc.rect(0, HDR_H - 4, W, 3, "F");
   doc.setFillColor(...NAVY);
-  doc.ellipse(W, cy + 5, 70, 11, "F");
-  doc.setFillColor(...WHITE);
-  doc.ellipse(W, cy + 2, 67, 9, "F");
-  cy += 10;
+  doc.rect(0, HDR_H - 1, W, 1.2, "F");
+
+  let cy = HDR_H + 8;
 
   // ====== PAGE TITLE: "PAYSLIP — May 2026" with calendar icon ======
   drawIconCircle(doc, 16, cy + 2, "calendar", 4.5);
@@ -328,27 +337,6 @@ function drawSectionHeader(doc, title, iconType, color, y, rightLabel) {
   }
 }
 
-/* ----------------------- Header decorations (corner swooshes) ----------------------- */
-function drawHeaderDecorations(doc, W) {
-  // ===== TOP-RIGHT layered swooshes (using concentric ellipses centered at corner) =====
-  doc.setFillColor(...NAVY);
-  doc.ellipse(W, 0, 95, 70, "F");
-  doc.setFillColor(...ORANGE);
-  doc.ellipse(W, 0, 80, 60, "F");
-  doc.setFillColor(...NAVY);
-  doc.ellipse(W, 0, 70, 52, "F");
-  doc.setFillColor(...WHITE);
-  doc.ellipse(W, 0, 62, 46, "F");
-
-  // ===== TOP-LEFT corner accent =====
-  doc.setFillColor(...ORANGE);
-  doc.triangle(0, 0, 22, 0, 0, 32, "F");
-  doc.setFillColor(...NAVY);
-  doc.triangle(0, 0, 14, 0, 0, 22, "F");
-  doc.setFillColor(...WHITE);
-  doc.triangle(0, 0, 7, 0, 0, 11, "F");
-}
-
 /* ----------------------- Icons inside light-blue circles ----------------------- */
 function drawIconCircle(doc, cx, cy, type, r = 4, onColor = false) {
   if (onColor) {
@@ -360,6 +348,15 @@ function drawIconCircle(doc, cx, cy, type, r = 4, onColor = false) {
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.35);
   drawIcon(doc, cx, cy, type, r * 0.6);
+}
+
+/** Solid navy circle with WHITE icon — used in payslip header contact row. */
+function drawSolidIconCircle(doc, cx, cy, type, r = 4.2) {
+  doc.setFillColor(...NAVY);
+  doc.circle(cx, cy, r, "F");
+  doc.setDrawColor(...WHITE);
+  doc.setLineWidth(0.45);
+  drawIcon(doc, cx, cy, type, r * 0.55);
 }
 
 function drawIcon(doc, cx, cy, type, s) {
