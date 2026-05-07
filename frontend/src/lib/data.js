@@ -160,10 +160,19 @@ export async function listLedger({ employee_id } = {}) {
 export async function ledgerBalance(employee_id) {
   const { data, error } = await supabase.rpc("ledger_balance", { p_employee_id: employee_id });
   if (error) throw error;
-  return data?.[0] || { advance: 0, allowance: 0, deduction: 0, balance: 0 };
+  return data?.[0] || { advance: 0, allowance: 0, deduction: 0, disbursed: 0, balance: 0 };
 }
 export async function createLedger(payload) {
   return thr(await supabase.from("ledger").insert(payload).select().single());
+}
+/** Disbursements paid for a particular (employee, year, month). */
+export async function listDisbursements({ employee_id, paid_for_year, paid_for_month } = {}) {
+  let q = supabase.from("ledger").select("*, employee:employees(name)").eq("entry_type", "disbursement").order("entry_date", { ascending: false });
+  if (employee_id) q = q.eq("employee_id", employee_id);
+  if (paid_for_year) q = q.eq("paid_for_year", paid_for_year);
+  if (paid_for_month) q = q.eq("paid_for_month", paid_for_month);
+  const rows = thr(await q);
+  return rows.map(r => ({ ...r, employee_name: r.employee?.name }));
 }
 export async function deleteLedger(id) {
   return thr(await supabase.from("ledger").delete().eq("id", id));

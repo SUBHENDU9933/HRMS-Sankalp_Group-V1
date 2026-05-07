@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   listPayroll, generatePayroll, updatePayroll, deletePayroll,
-  listEmployees, getEmployee, getCompanySettings, liveSalary,
+  listEmployees, getEmployee, getCompanySettings, liveSalary, listDisbursements,
 } from "@/lib/data";
 import { generatePayslipPdf } from "@/lib/pdf";
 import { fmtINR, MONTHS, fmtDateTime } from "@/lib/utils-app";
@@ -18,6 +18,7 @@ export default function Payroll() {
   const { isAdmin, user } = useAuth();
   const [period, setPeriod] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
   const [list, setList] = useState([]);
+  const [paidMap, setPaidMap] = useState({}); // employee_id -> total paid for this period
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editRow, setEditRow] = useState(null); // id being edited
@@ -27,6 +28,11 @@ export default function Payroll() {
     setLoading(true);
     const rows = await listPayroll({ month: period.month, year: period.year, employee_id: isAdmin ? undefined : user.id });
     setList(rows);
+    // Fetch disbursements for this period
+    const disbs = await listDisbursements({ paid_for_year: period.year, paid_for_month: period.month, employee_id: isAdmin ? undefined : user.id });
+    const paidByEmp = {};
+    disbs.forEach(d => { paidByEmp[d.employee_id] = (paidByEmp[d.employee_id] || 0) + Number(d.amount || 0); });
+    setPaidMap(paidByEmp);
     setLoading(false);
   };
   useEffect(() => { load(); }, [period.month, period.year, isAdmin, user.id]); // eslint-disable-line
@@ -36,11 +42,12 @@ export default function Payroll() {
 
   const download = async (p) => {
     try {
-      const [emp, co] = await Promise.all([
+      const [emp, co, disbs] = await Promise.all([
         getEmployee(p.employee_id),
         getCompanySettings().catch(() => null),
+        listDisbursements({ employee_id: p.employee_id, paid_for_year: p.year, paid_for_month: p.month }).catch(() => []),
       ]);
-      await generatePayslipPdf(p, emp, co);
+      await generatePayslipPdf(p, emp, co, disbs);
     } catch (e) { toast.error("Download failed: " + e.message); }
   };
 
@@ -113,14 +120,20 @@ export default function Payroll() {
               <th className="py-2.5 pr-4 text-right">+ OT</th>
               <th className="py-2.5 pr-4 text-right">− Ded.</th>
               <th className="py-2.5 pr-4 text-right">Net</th>
+              <th className="py-2.5 pr-4 text-right">Paid</th>
+              <th className="py-2.5 pr-4 text-right">Outstanding</th>
+              <th className="py-2.5 pr-4">Status</th>
               <th className="py-2.5 pr-4">Generated</th>
               <th className="py-2.5 px-5 text-right">Actions</th>
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={10} className="py-8 text-center text-slate-400">Loading…</td></tr>
-                : list.length === 0 ? <tr><td colSpan={10} className="py-8 text-center text-slate-400">No payslip for {MONTHS[period.month]} {period.year} yet. Generate one above.</td></tr>
+              {loading ? <tr><td colSpan={13} className="py-8 text-center text-slate-400">Loading…</td></tr>
+                : list.length === 0 ? <tr><td colSpan={13} className="py-8 text-center text-slate-400">No payslip for {MONTHS[period.month]} {period.year} yet. Generate one above.</td></tr>
                 : list.map(p => {
                   const isEd = editRow === p.id;
+                  const paid = paidMap[p.employee_id] || 0;
+                  const out  = (p.net_salary || 0) - paid;
+                  const status = paid <= 0 ? "unpaid" : (out > 0.01 ? "partial" : "paid");
                   const nm = (k) => <input type="number" step="1" value={editData[k] || 0} onChange={e => setEditData(d => ({ ...d, [k]: e.target.value }))} className="sk-input !py-1 !px-2 w-24 text-right" />;
                   return (
                     <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/50 align-middle">
@@ -132,6 +145,13 @@ export default function Payroll() {
                       <td className="py-2.5 pr-4 text-right text-emerald-600">{isEd ? nm("overtime") : (p.overtime ? fmtINR(p.overtime) : "—")}</td>
                       <td className="py-2.5 pr-4 text-right text-rose-500">{isEd ? nm("deductions") : (p.deductions ? fmtINR(p.deductions) : "—")}</td>
                       <td className="py-2.5 pr-4 text-right font-extrabold text-[#F97316]">{fmtINR(p.net_salary)}</td>
+                      <td className="py-2.5 pr-4 text-right text-[#4DA3FF] font-bold">{paid > 0 ? fmtINR(paid) : "—"}</td>
+                      <td className={`py-2.5 pr-4 text-right font-extrabold ${out > 0 ? "text-rose-600" : "text-emerald-600"}`}>{fmtINR(Math.max(0, out))}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className={`sk-badge ${status === "paid" ? "sk-badge-success" : status === "partial" ? "sk-badge-warning" : "sk-badge-danger"}`}>
+                          {status === "paid" ? "✅ Paid" : status === "partial" ? "🟡 Partial" : "🔴 Unpaid"}
+                        </span>
+                      </td>
                       <td className="py-2.5 pr-4 text-xs text-slate-500">{p.generated_at ? fmtDateTime(p.generated_at) : "—"}</td>
                       <td className="py-2.5 px-5 text-right">
                         <div className="inline-flex items-center gap-1">

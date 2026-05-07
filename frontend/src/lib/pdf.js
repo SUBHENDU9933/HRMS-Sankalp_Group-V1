@@ -4,11 +4,12 @@ import autoTable from "jspdf-autotable";
 import { MONTHS } from "./utils-app";
 
 /**
- * @param {object} p   - payroll row
- * @param {object} emp - employee row
- * @param {object} co  - company_settings row (optional)
+ * @param {object} p     - payroll row
+ * @param {object} emp   - employee row
+ * @param {object} co    - company_settings row (optional)
+ * @param {array}  disbs - disbursement ledger entries for this period (optional)
  */
-export async function generatePayslipPdf(p, emp, co = null) {
+export async function generatePayslipPdf(p, emp, co = null, disbs = []) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
 
@@ -113,11 +114,56 @@ export async function generatePayslipPdf(p, emp, co = null) {
     columnStyles: { 1: { halign: "right" } },
   });
 
-  const y3 = doc.lastAutoTable.finalY + 8;
+  const y3 = doc.lastAutoTable.finalY + 6;
+
+  // Payment status block
+  const paid = (disbs || []).reduce((s, d) => s + Number(d.amount || 0), 0);
+  const out  = Number(p.net_salary || 0) - paid;
+  const status = paid <= 0 ? "UNPAID" : (out > 0.01 ? "PARTIAL" : "PAID");
+
+  autoTable(doc, {
+    startY: y3, margin: { left: 14, right: 14 },
+    head: [["Payment status", ""]],
+    body: [
+      ["Total Payable (Net)", fmt(p.net_salary)],
+      ["Disbursed",           fmt(paid)],
+      [
+        { content: out > 0.01 ? "Outstanding" : "Status", styles: { fontStyle: "bold" } },
+        { content: out > 0.01 ? `${fmt(out)}  (${status})` : status, styles: { fontStyle: "bold", halign: "right",
+            fillColor: status === "PAID" ? [220, 252, 231] : status === "PARTIAL" ? [254, 243, 199] : [254, 226, 226],
+            textColor: status === "PAID" ? [22, 101, 52] : status === "PARTIAL" ? [146, 64, 14] : [153, 27, 27] } },
+      ],
+    ],
+    theme: "grid",
+    headStyles: { fillColor: [77, 163, 255], textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: 9, cellPadding: 2.2 },
+    columnStyles: { 1: { halign: "right" } },
+  });
+
+  // Disbursement details table
+  if (disbs && disbs.length > 0) {
+    const yD = doc.lastAutoTable.finalY + 4;
+    autoTable(doc, {
+      startY: yD, margin: { left: 14, right: 14 },
+      head: [["Date", "Mode", "Reference", "Amount"]],
+      body: disbs.map(d => [
+        (d.entry_date || "").slice(0, 10),
+        (d.payment_mode || "—").toUpperCase(),
+        d.transfer_ref || "—",
+        fmt(d.amount),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59], fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 1.8 },
+      columnStyles: { 3: { halign: "right" } },
+    });
+  }
+
+  const yEnd = doc.lastAutoTable.finalY + 6;
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Generated on ${new Date().toLocaleString()}. Computer-generated payslip — no signature required.`, 14, y3);
-  if (co?.address) doc.text(co.address, W - 14, y3, { align: "right", maxWidth: 90 });
+  doc.text(`Generated on ${new Date().toLocaleString()}. Computer-generated payslip — no signature required.`, 14, yEnd);
+  if (co?.address) doc.text(co.address, W - 14, yEnd, { align: "right", maxWidth: 90 });
 
   const safeName = (emp?.name || "employee").replace(/\s+/g, "_");
   doc.save(`payslip_${safeName}_${MONTHS[p.month]}_${p.year}.pdf`);
