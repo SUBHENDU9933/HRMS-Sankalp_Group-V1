@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   liveSalary, livePayrollTotal, listAttendance, listEmployees,
-  listVisits, listExpenses, listPayroll
+  listVisits, listPayroll
 } from "@/lib/data";
 import { fmtINR, fmtDateTime, MONTHS } from "@/lib/utils-app";
 import { Link } from "react-router-dom";
@@ -116,7 +116,6 @@ function AdminBlock() {
   const [agg, setAgg] = useState(null);
   const [empCount, setEmpCount] = useState(0);
   const [visits, setVisits] = useState([]);
-  const [expenses, setExpenses] = useState([]);
   const [topPerf, setTopPerf] = useState([]);
   const [pay, setPay] = useState([]);
 
@@ -124,18 +123,16 @@ function AdminBlock() {
     let cancelled = false;
     (async () => {
       const monthStart = new Date(Y, M - 1, 1).toISOString().slice(0, 10);
-      const [a, emps, vAll, exp, payAll] = await Promise.all([
+      const [a, emps, vAll, payAll] = await Promise.all([
         livePayrollTotal(Y, M).catch(() => null),
         listEmployees({ status: "active" }).catch(() => []),
         listVisits({ date_from: monthStart }).catch(() => []),
-        listExpenses({ date_from: monthStart }).catch(() => []),
         listPayroll({ year: Y, month: M }).catch(() => []),
       ]);
       if (cancelled) return;
       setAgg(a);
       setEmpCount(emps.length);
       setVisits(vAll);
-      setExpenses(exp);
       setPay(payAll);
 
       // Top performers by visits in this month
@@ -162,14 +159,13 @@ function AdminBlock() {
     }
     return arr;
   })();
-  const expByCat = (() => {
-    const m = {};
-    expenses.forEach(e => { m[e.category] = (m[e.category] || 0) + (e.amount || 0); });
-    return Object.entries(m).map(([k, v]) => ({ name: k, value: v })).sort((a, b) => b.value - a.value).slice(0, 6);
+  // Visit type breakdown for donut
+  const visitTypes = (() => {
+    const m = { lead: 0, project: 0 };
+    visits.forEach(v => { m[v.visit_type] = (m[v.visit_type] || 0) + 1; });
+    return Object.entries(m).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, value: v }));
   })();
   const PIE_COLORS = ["#4DA3FF", "#FFA94D", "#22C55E", "#A855F7", "#EF4444", "#0EA5E9"];
-
-  const totalSpent = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
   return (
     <>
@@ -190,8 +186,8 @@ function AdminBlock() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatTile icon="👥" label="Employees" value={empCount} hint="active" color="blue" />
         <StatTile icon="📍" label="Visits" value={visits.length} hint="this month" color="orange" />
-        <StatTile icon="💸" label="Expenses" value={fmtINR(totalSpent)} hint="this month" color="rose" />
-        <StatTile icon="🧾" label="Generated payslips" value={pay.length} hint={MONTHS[M]} color="violet" />
+        <StatTile icon="🏗️" label="Project visits" value={visits.filter(v => v.visit_type === "project").length} hint="this month" color="violet" />
+        <StatTile icon="🧾" label="Generated payslips" value={pay.length} hint={MONTHS[M]} color="emerald" />
       </div>
 
       {/* Team attendance grid */}
@@ -217,25 +213,25 @@ function AdminBlock() {
         </div>
 
         <div className="sk-card p-5">
-          <h2 className="font-heading text-lg font-extrabold flex items-center gap-2 mb-3"><span>🍩</span> Expense by category</h2>
-          {expByCat.length === 0 ? (
-            <div className="h-56 grid place-items-center text-slate-400 text-sm">No expenses yet</div>
+          <h2 className="font-heading text-lg font-extrabold flex items-center gap-2 mb-3"><span>🍩</span> Visit type breakdown</h2>
+          {visitTypes.length === 0 ? (
+            <div className="h-56 grid place-items-center text-slate-400 text-sm">No visits yet</div>
           ) : (
             <div className="h-56">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={expByCat} dataKey="value" innerRadius={48} outerRadius={80} paddingAngle={2}>
-                    {expByCat.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  <Pie data={visitTypes} dataKey="value" innerRadius={48} outerRadius={80} paddingAngle={2}>
+                    {visitTypes.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v) => fmtINR(v)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           )}
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {expByCat.map((e, i) => (
-              <span key={e.name} className="inline-flex items-center gap-1 text-slate-600">
-                <span className="w-2 h-2 rounded-sm" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /> {e.name}
+            {visitTypes.map((e, i) => (
+              <span key={e.name} className="inline-flex items-center gap-1 text-slate-600 capitalize">
+                <span className="w-2 h-2 rounded-sm" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /> {e.name} ({e.value})
               </span>
             ))}
           </div>

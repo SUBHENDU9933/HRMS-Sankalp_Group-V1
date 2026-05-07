@@ -12,7 +12,6 @@ import Employees from "@/pages/Employees";
 import EmployeeForm from "@/pages/EmployeeForm";
 import Payroll from "@/pages/Payroll";
 import Ledger from "@/pages/Ledger";
-import Expenses from "@/pages/Expenses";
 import Profile from "@/pages/Profile";
 import CompanySettings from "@/pages/CompanySettings";
 import "@/App.css";
@@ -43,7 +42,6 @@ function App() {
             <Route path="employees/:id" element={<Protected roles={["admin","manager"]}><EmployeeForm /></Protected>} />
             <Route path="payroll" element={<Payroll />} />
             <Route path="ledger" element={<Ledger />} />
-            <Route path="expenses" element={<Protected roles={["admin","manager"]}><Expenses /></Protected>} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Protected roles={["admin"]}><CompanySettings /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
