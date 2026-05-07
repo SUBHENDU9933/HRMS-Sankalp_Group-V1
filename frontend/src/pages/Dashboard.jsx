@@ -29,19 +29,18 @@ export default function Dashboard() {
 
   return (
     <div className="sk-page space-y-5 md:space-y-6" data-testid="dashboard">
-      {/* Hero greeting */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4DA3FF] via-[#6BB6FF] to-[#FFA94D] p-5 md:p-7 text-white shadow-lg">
-        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-[#F97316]/30 blur-2xl" />
+      {/* Hero greeting — solid brand-blue */}
+      <div className="relative rounded-2xl bg-[#1E3A8A] p-5 md:p-7 text-white shadow-md overflow-hidden">
+        <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-[#F97316]" />
         <div className="relative flex items-center justify-between flex-wrap gap-3">
           <div>
-            <div className="text-xs md:text-sm font-medium opacity-90">{greet}</div>
+            <div className="text-xs md:text-sm font-medium text-[#FFE4D0]">{greet}</div>
             <h1 className="font-heading text-2xl md:text-4xl font-extrabold leading-tight mt-0.5">
               {user.name?.split(" ")[0] || "Hello"}
             </h1>
-            <div className="text-xs md:text-sm opacity-90 mt-1">{today.toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</div>
+            <div className="text-xs md:text-sm text-white/80 mt-1">{today.toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</div>
           </div>
-          <div className="font-bangla text-sm md:text-lg opacity-95 italic max-w-[60%] text-right">"ঘর নয়, স্বপ্ন সাজাই আমরা"</div>
+          <div className="font-bangla text-sm md:text-lg italic max-w-[60%] text-right text-[#FFE4D0]">"ঘর নয়, স্বপ্ন সাজাই আমরা"</div>
         </div>
       </div>
 
@@ -91,10 +90,10 @@ function EmployeeBlock({ userId }) {
 
       {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatTile icon="✅" label="Present" value={salary?.present_days || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="emerald" />
-        <StatTile icon="🟡" label="Half-day" value={salary?.half_days || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="amber" />
+        <StatTile icon="✅" label="Present"      value={salary?.present_days || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="navy" />
+        <StatTile icon="🟡" label="Half-day"     value={salary?.half_days   || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="lightOrange" />
         <StatTile icon="📍" label="Visits today" value={visits.today} hint={`${visits.month} in period`} color="orange" />
-        <StatTile icon="💸" label="Advance" value={fmtINR(salary?.advance || 0)} hint="outstanding" color="rose" />
+        <StatTile icon="💸" label="Advance"      value={fmtINR(salary?.advance || 0)} hint="outstanding" color="lightBlue" />
       </div>
 
       {/* Calendar + recent visits side by side */}
@@ -165,7 +164,7 @@ function AdminBlock() {
     visits.forEach(v => { m[v.visit_type] = (m[v.visit_type] || 0) + 1; });
     return Object.entries(m).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, value: v }));
   })();
-  const PIE_COLORS = ["#4DA3FF", "#FFA94D", "#22C55E", "#A855F7", "#EF4444", "#0EA5E9"];
+  const PIE_COLORS = ["#1E3A8A", "#F97316", "#4DA3FF", "#FFA94D", "#1E40AF", "#FED7AA"];
 
   return (
     <>
@@ -184,10 +183,10 @@ function AdminBlock() {
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatTile icon="👥" label="Employees" value={empCount} hint="active" color="blue" />
-        <StatTile icon="📍" label="Visits" value={visits.length} hint="this month" color="orange" />
-        <StatTile icon="🏗️" label="Project visits" value={visits.filter(v => v.visit_type === "project").length} hint="this month" color="violet" />
-        <StatTile icon="🧾" label="Generated payslips" value={pay.length} hint={MONTHS[M]} color="emerald" />
+        <StatTile icon="👥" label="Employees"          value={empCount} hint="active" color="navy" />
+        <StatTile icon="📍" label="Visits"             value={visits.length} hint="this month" color="orange" />
+        <StatTile icon="🏗️" label="Project visits"     value={visits.filter(v => v.visit_type === "project").length} hint="this month" color="lightOrange" />
+        <StatTile icon="🧾" label="Generated payslips" value={pay.length} hint={MONTHS[M]} color="lightBlue" />
       </div>
 
       {/* Team attendance grid */}
@@ -206,7 +205,7 @@ function AdminBlock() {
                 <XAxis dataKey="d" tick={{ fontSize: 10, fill: "#64748B" }} />
                 <YAxis tick={{ fontSize: 10, fill: "#64748B" }} allowDecimals={false} />
                 <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                <Line type="monotone" dataKey="v" stroke="#4DA3FF" strokeWidth={3} dot={{ r: 4, fill: "#FFA94D" }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="v" stroke="#1E3A8A" strokeWidth={3} dot={{ r: 4, fill: "#F97316" }} activeDot={{ r: 6, fill: "#F97316" }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -290,33 +289,32 @@ function LiveSalaryHero({ salary, title, subtitle, admin }) {
   const adv  = salary?.advance || 0;
   const ded  = salary?.deductions || 0;
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-[0_10px_30px_-10px_rgba(77,163,255,0.25)]" data-testid="live-salary-hero">
-      <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-[#FFA94D]/10 blur-2xl" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-[#4DA3FF]/10 blur-2xl" />
-      <div className="relative p-5 md:p-6">
+    <div className="relative rounded-2xl bg-white border-2 border-[#1E3A8A]/10 overflow-hidden" data-testid="live-salary-hero">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#F97316]" />
+      <div className="p-5 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-[#4DA3FF]">{title}</div>
-            <div className="font-heading text-3xl md:text-5xl font-extrabold text-slate-900 mt-1.5 tracking-tight">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#1E3A8A]">{title}</div>
+            <div className="font-heading text-3xl md:text-5xl font-extrabold text-[#1E3A8A] mt-1.5 tracking-tight">
               {fmtINR(net)}
             </div>
-            <div className="text-xs md:text-sm text-slate-500 mt-1.5 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-[#FFA94D]" /> {subtitle}</div>
+            <div className="text-xs md:text-sm text-slate-500 mt-1.5 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-[#F97316]" /> {subtitle}</div>
           </div>
           {!admin && (salary?.present_days != null) && (
-            <div className="hidden md:block text-right">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Days</div>
-              <div className="font-heading text-2xl font-extrabold text-emerald-600">{salary.present_days || 0}<span className="text-slate-300 text-lg">/{(salary.present_days || 0) + (salary.half_days || 0) + (salary.absent_days || 0)}</span></div>
-              <div className="text-[10px] text-slate-400">present this month</div>
+            <div className="hidden md:block text-right bg-[#FFE4D0] rounded-xl p-3 min-w-[110px]">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#C2410C]">Days</div>
+              <div className="font-heading text-2xl font-extrabold text-[#C2410C]">{salary.present_days || 0}<span className="text-[#FFA94D] text-lg">/{(salary.present_days || 0) + (salary.half_days || 0) + (salary.absent_days || 0)}</span></div>
+              <div className="text-[10px] text-[#C2410C]/80">present this month</div>
             </div>
           )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-          <Breakdown icon={<Coins className="w-4 h-4" />} label="Base" value={base} positive />
-          <Breakdown icon={<TrendingUp className="w-4 h-4" />} label="Allowance" value={add} positive />
-          <Breakdown icon={<TrendingDown className="w-4 h-4" />} label="Advance" value={adv} negative />
-          <Breakdown icon={<TrendingDown className="w-4 h-4" />} label="Deductions" value={ded} negative />
+          <Breakdown icon={<Coins className="w-4 h-4" />}        label="Base"       value={base} positive />
+          <Breakdown icon={<TrendingUp className="w-4 h-4" />}   label="Allowance"  value={add}  positive />
+          <Breakdown icon={<TrendingDown className="w-4 h-4" />} label="Advance"    value={adv}  negative />
+          <Breakdown icon={<TrendingDown className="w-4 h-4" />} label="Deductions" value={ded}  negative />
         </div>
-        <Link to="/ledger" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-[#4DA3FF] hover:text-[#3B82F6]">
+        <Link to="/ledger" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-[#1E3A8A] hover:text-[#F97316] transition">
           See ledger <ArrowUpRight className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -325,35 +323,37 @@ function LiveSalaryHero({ salary, title, subtitle, admin }) {
 }
 
 const Breakdown = ({ icon, label, value, positive, negative }) => (
-  <div className={`rounded-xl p-3 ${positive ? "bg-emerald-50" : negative ? "bg-rose-50" : "bg-slate-50"}`}>
-    <div className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${positive ? "text-emerald-700" : negative ? "text-rose-700" : "text-slate-600"}`}>
+  <div className={`rounded-xl p-3 border ${positive ? "bg-[#DBEAFE] border-[#4DA3FF]/40" : negative ? "bg-[#FFE4D0] border-[#FFA94D]/50" : "bg-slate-50 border-slate-100"}`}>
+    <div className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${positive ? "text-[#1E3A8A]" : negative ? "text-[#C2410C]" : "text-slate-600"}`}>
       {icon} {label}
     </div>
-    <div className={`font-heading text-base md:text-lg font-extrabold mt-0.5 ${positive ? "text-emerald-700" : negative ? "text-rose-700" : "text-slate-800"}`}>
+    <div className={`font-heading text-base md:text-lg font-extrabold mt-0.5 ${positive ? "text-[#1E3A8A]" : negative ? "text-[#C2410C]" : "text-slate-800"}`}>
       {negative ? "−" : positive ? "+" : ""}{fmtINR(value)}
     </div>
   </div>
 );
 
-const TILE_COLOR = {
-  emerald: "from-emerald-50 to-white text-emerald-700",
-  amber:   "from-amber-50 to-white text-amber-700",
-  orange:  "from-orange-50 to-white text-orange-700",
-  rose:    "from-rose-50 to-white text-rose-700",
-  blue:    "from-blue-50 to-white text-blue-700",
-  violet:  "from-violet-50 to-white text-violet-700",
+const TILE_STYLES = {
+  navy:       "bg-[#1E3A8A] text-white border-[#1E3A8A]",
+  orange:     "bg-[#F97316] text-white border-[#F97316]",
+  lightBlue:  "bg-[#DBEAFE] text-[#1E3A8A] border-[#4DA3FF]/30",
+  lightOrange:"bg-[#FFE4D0] text-[#C2410C] border-[#FFA94D]/40",
+  white:      "bg-white text-[#1E3A8A] border-[#1E3A8A]/15",
 };
 
-const StatTile = ({ icon, label, value, hint, color = "blue" }) => (
-  <div className={`relative overflow-hidden rounded-xl border border-slate-100 bg-gradient-to-br ${TILE_COLOR[color] || TILE_COLOR.blue} p-3.5 md:p-4`}>
-    <div className="flex items-start justify-between">
-      <div className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</div>
-      <div className="text-xl md:text-2xl">{icon}</div>
+const StatTile = ({ icon, label, value, hint, color = "lightBlue" }) => {
+  const isDark = color === "navy" || color === "orange";
+  return (
+    <div className={`relative rounded-xl border p-3.5 md:p-4 ${TILE_STYLES[color] || TILE_STYLES.lightBlue}`}>
+      <div className="flex items-start justify-between">
+        <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/85" : "opacity-80"}`}>{label}</div>
+        <div className="text-xl md:text-2xl">{icon}</div>
+      </div>
+      <div className="font-heading text-2xl md:text-3xl font-extrabold mt-1.5">{value}</div>
+      {hint && <div className={`text-[11px] mt-0.5 ${isDark ? "text-white/75" : "opacity-70"}`}>{hint}</div>}
     </div>
-    <div className="font-heading text-2xl md:text-3xl font-extrabold text-slate-900 mt-1.5">{value}</div>
-    {hint && <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>}
-  </div>
-);
+  );
+};
 
 function RecentVisitsCard({ userId }) {
   const [visits, setVisits] = useState([]);

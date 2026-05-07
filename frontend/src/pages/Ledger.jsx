@@ -335,8 +335,8 @@ const ModeBtn = ({ active, onClick, icon, label, colorClass, testid }) => (
 );
 
 const BalCard = ({ label, value, sign, highlight }) => (
-  <div className={`rounded-xl p-4 border ${highlight ? "bg-gradient-to-br from-[#4DA3FF]/10 to-[#FFA94D]/10 border-[#4DA3FF]/30" : sign === "+" ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"}`}>
-    <div className={`text-[10px] font-bold uppercase tracking-wider ${highlight ? "text-[#4DA3FF]" : sign === "+" ? "text-emerald-700" : "text-rose-700"}`}>{label}</div>
-    <div className="font-heading text-xl md:text-2xl font-extrabold mt-1 text-slate-900">{sign === "✓" ? "" : sign}{fmtINR(value)}</div>
+  <div className={`rounded-xl p-4 border-2 ${highlight ? "bg-[#1E3A8A] border-[#1E3A8A] text-white" : sign === "+" ? "bg-[#DBEAFE] border-[#4DA3FF]/40 text-[#1E3A8A]" : "bg-[#FFE4D0] border-[#FFA94D]/50 text-[#C2410C]"}`}>
+    <div className={`text-[10px] font-bold uppercase tracking-wider ${highlight ? "text-[#FFE4D0]" : ""}`}>{label}</div>
+    <div className={`font-heading text-xl md:text-2xl font-extrabold mt-1 ${highlight ? "text-white" : ""}`}>{sign === "✓" ? "" : sign}{fmtINR(value)}</div>
   </div>
 );

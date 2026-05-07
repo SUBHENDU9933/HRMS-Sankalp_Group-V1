@@ -48,7 +48,7 @@ export default function Profile() {
       <form onSubmit={save} className="space-y-5">
         <div className="sk-card p-5 space-y-4">
           <div className="flex items-center gap-4">
-            {form.photo_url ? <img src={form.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover" /> : <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-[#4DA3FF] to-[#FFA94D] grid place-items-center text-white font-bold text-xl">{user.name?.[0]?.toUpperCase()}</div>}
+            {form.photo_url ? <img src={form.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover" /> : <div className="w-20 h-20 rounded-xl bg-[#1E3A8A] grid place-items-center text-white font-bold text-xl border-2 border-[#F97316]">{user.name?.[0]?.toUpperCase()}</div>}
             <div className="flex-1">
               <div className="font-heading text-lg font-bold">{user.name}</div>
               <div className="text-xs text-slate-500">{user.email} · {user.role}</div>

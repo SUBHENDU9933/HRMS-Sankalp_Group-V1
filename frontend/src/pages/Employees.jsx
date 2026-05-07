@@ -50,7 +50,7 @@ export default function Employees() {
           {items.map(e => (
             <div key={e.id} className="sk-card p-4" data-testid={`employee-card-${e.id}`}>
               <div className="flex items-start gap-3">
-                {e.photo_url ? <img src={e.photo_url} alt="" className="w-12 h-12 rounded-xl object-cover" /> : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#4DA3FF] to-[#FFA94D] grid place-items-center text-white font-bold">{e.name?.[0]?.toUpperCase() || "?"}</div>}
+                {e.photo_url ? <img src={e.photo_url} alt="" className="w-12 h-12 rounded-xl object-cover" /> : <div className="w-12 h-12 rounded-xl bg-[#1E3A8A] grid place-items-center text-white font-bold border-2 border-[#F97316]">{e.name?.[0]?.toUpperCase() || "?"}</div>}
                 <div className="flex-1 min-w-0">
                   <div className="font-heading font-bold truncate">{e.name}</div>
                   <div className="text-xs text-slate-500 truncate">{e.designation || e.role}</div>

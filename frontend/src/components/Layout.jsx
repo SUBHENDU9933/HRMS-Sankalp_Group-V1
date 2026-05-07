@@ -68,7 +68,7 @@ export default function Layout() {
         </nav>
         <div className="border-t border-slate-100 p-3">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#4DA3FF] to-[#FFA94D] grid place-items-center text-white font-bold text-sm">
+            <div className="w-9 h-9 rounded-full bg-[#1E3A8A] grid place-items-center text-white font-bold text-sm border-2 border-[#F97316]">
               {user?.name?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">

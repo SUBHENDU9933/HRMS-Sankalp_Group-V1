@@ -119,9 +119,9 @@ export default function AttendancePage() {
         <p className="text-sm text-slate-500 mt-1">Selfie + GPS verified daily attendance with office geofence.</p>
       </div>
 
-      {/* Today's strip */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4DA3FF] via-[#6BB6FF] to-[#FFA94D] p-5 text-white shadow-lg" data-testid="today-card">
-        <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+      {/* Today's strip — solid brand-blue */}
+      <div className="relative rounded-2xl bg-[#1E3A8A] p-5 text-white shadow-md overflow-hidden" data-testid="today-card">
+        <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-[#F97316]" />
         <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-wider opacity-90">Today — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long" })}</div>
@@ -139,18 +139,18 @@ export default function AttendancePage() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={() => setShowCapture(true)} disabled={busy} className="bg-white text-[#F97316] hover:bg-white/95 font-extrabold rounded-xl px-5 py-3 shadow-lg active:scale-95 transition flex items-center gap-2" data-testid="mark-attendance-button">
+            <button onClick={() => setShowCapture(true)} disabled={busy} className="bg-[#F97316] text-white hover:bg-[#EA580C] font-extrabold rounded-xl px-5 py-3 shadow active:scale-95 transition flex items-center gap-2" data-testid="mark-attendance-button">
               <Camera className="w-4 h-4" /> {today ? "Re-mark" : "Mark with Selfie"}
             </button>
-            <button onClick={() => markStatus("half_day")} disabled={busy} className="bg-white/20 hover:bg-white/30 backdrop-blur text-white font-bold rounded-xl px-3 py-2 text-sm">🟡 Half-day</button>
-            <button onClick={() => markStatus("absent")} disabled={busy} className="bg-white/20 hover:bg-white/30 backdrop-blur text-white font-bold rounded-xl px-3 py-2 text-sm">🔴 Absent</button>
+            <button onClick={() => markStatus("half_day")} disabled={busy} className="bg-white text-[#1E3A8A] hover:bg-[#FFE4D0] font-bold rounded-xl px-3 py-2 text-sm">🟡 Half-day</button>
+            <button onClick={() => markStatus("absent")} disabled={busy} className="bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl px-3 py-2 text-sm border border-white/30">🔴 Absent</button>
           </div>
         </div>
         {today?.selfie_url && (
           <div className="relative mt-4 flex flex-wrap gap-3 items-center">
-            <img src={today.selfie_url} alt="" className="w-20 h-20 rounded-xl object-cover ring-2 ring-white/40" />
+            <img src={today.selfie_url} alt="" className="w-20 h-20 rounded-xl object-cover ring-2 ring-[#F97316]" />
             {today.latitude != null && (
-              <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-mono px-3 py-1.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-white/15 text-white text-xs font-mono px-3 py-1.5 rounded-full border border-white/25">
                 <MapPin className="w-3.5 h-3.5" />{today.latitude.toFixed(5)}, {today.longitude.toFixed(5)}
                 {today.distance_m != null && <span className="opacity-90">· {fmtDistance(today.distance_m)} from office</span>}
               </span>
@@ -280,7 +280,7 @@ function AdminBackfillForm({ employees, onSaved }) {
     finally { setBusy(false); }
   };
   return (
-    <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-[#4DA3FF]/5 to-[#FFA94D]/5 border border-[#4DA3FF]/20" data-testid="admin-backfill-form">
+    <div className="mb-4 p-4 rounded-xl bg-[#DBEAFE] border-2 border-[#4DA3FF]/30" data-testid="admin-backfill-form">
       <div className="text-xs font-extrabold uppercase tracking-wider text-[#4DA3FF] mb-2 flex items-center gap-1.5">✏️ Add / overwrite attendance (any date)</div>
       <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-5 gap-2">
         <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })} className="sk-input md:col-span-2">
