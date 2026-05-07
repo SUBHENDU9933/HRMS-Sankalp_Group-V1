@@ -145,6 +145,9 @@ export async function updatePayroll(id, patch) {
   const net = (merged.base_salary || 0) + (merged.incentive || 0) + (merged.bonus || 0) + (merged.overtime || 0) - (merged.deductions || 0);
   return thr(await supabase.from("payroll").update({ ...patch, net_salary: Number(net.toFixed(2)) }).eq("id", id).select().single());
 }
+export async function deletePayroll(id) {
+  return thr(await supabase.from("payroll").delete().eq("id", id));
+}
 
 /* ---------------- ledger ---------------- */
 export async function listLedger({ employee_id } = {}) {

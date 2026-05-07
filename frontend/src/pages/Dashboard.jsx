@@ -8,6 +8,7 @@ import { fmtINR, fmtDateTime, MONTHS } from "@/lib/utils-app";
 import { Link } from "react-router-dom";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
 import AdminAttendanceGrid from "@/components/AdminAttendanceGrid";
+import MonthYearPicker from "@/components/MonthYearPicker";
 import {
   Wallet, MapPinned, ChevronRight, Sparkles, TrendingUp, TrendingDown,
   Users, ClipboardCheck, Receipt, Coins, Trophy, ArrowUpRight
@@ -51,6 +52,7 @@ export default function Dashboard() {
 
 /* ---------------- EMPLOYEE ---------------- */
 function EmployeeBlock({ userId }) {
+  const [period, setPeriod] = useState({ year: Y, month: M });
   const [salary, setSalary] = useState(null);
   const [att, setAtt] = useState([]);
   const [visits, setVisits] = useState({ today: 0, month: 0 });
@@ -58,12 +60,14 @@ function EmployeeBlock({ userId }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const monthStart = new Date(Y, M - 1, 1).toISOString().slice(0, 10);
+      const pad = String(period.month).padStart(2, "0");
+      const monthStart = `${period.year}-${pad}-01`;
+      const next = new Date(period.year, period.month, 1).toISOString().slice(0, 10);
       const todayISO = today.toISOString().slice(0, 10);
       const [sal, attRows, visMonth, visToday] = await Promise.all([
-        liveSalary(userId, Y, M),
-        listAttendance({ employee_id: userId, date_from: monthStart }),
-        listVisits({ employee_id: userId, date_from: monthStart }),
+        liveSalary(userId, period.year, period.month),
+        listAttendance({ employee_id: userId, date_from: monthStart, date_to: next }),
+        listVisits({ employee_id: userId, date_from: monthStart, date_to: next }),
         listVisits({ employee_id: userId, date_from: todayISO }),
       ]);
       if (cancelled) return;
@@ -72,26 +76,34 @@ function EmployeeBlock({ userId }) {
       setVisits({ today: visToday.length, month: visMonth.length });
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, period.year, period.month]);
 
   return (
     <>
+      {/* Month/year picker */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">Viewing period</div>
+        <MonthYearPicker value={period} onChange={setPeriod} />
+      </div>
+
       {/* LIVE salary HERO */}
-      <LiveSalaryHero salary={salary} title={`🪙 My Salary So Far · ${MONTHS[M]} ${Y}`} subtitle="Auto-calculated from your attendance & ledger" />
+      <LiveSalaryHero salary={salary} title={`🪙 My Salary · ${MONTHS[period.month]} ${period.year}`} subtitle={period.year === Y && period.month === M ? "Live till today — auto-calculated from attendance & ledger" : "Full-month summary"} />
 
       {/* Stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatTile icon="✅" label="Present" value={salary?.present_days || 0} hint="this month" color="emerald" />
-        <StatTile icon="🟡" label="Half-day" value={salary?.half_days || 0} hint="this month" color="amber" />
-        <StatTile icon="📍" label="Visits today" value={visits.today} hint={`${visits.month} this month`} color="orange" />
+        <StatTile icon="✅" label="Present" value={salary?.present_days || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="emerald" />
+        <StatTile icon="🟡" label="Half-day" value={salary?.half_days || 0} hint={`${MONTHS[period.month]} ${period.year}`} color="amber" />
+        <StatTile icon="📍" label="Visits today" value={visits.today} hint={`${visits.month} in period`} color="orange" />
         <StatTile icon="💸" label="Advance" value={fmtINR(salary?.advance || 0)} hint="outstanding" color="rose" />
       </div>
 
       {/* Calendar + recent visits side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="sk-card p-5 lg:col-span-2">
-          <h2 className="font-heading text-lg font-extrabold mb-3 flex items-center gap-2"><span>📅</span> Attendance — {MONTHS[M]} {Y}</h2>
-          <AttendanceCalendar year={Y} month={M} records={att} />
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-lg font-extrabold flex items-center gap-2"><span>📅</span> Attendance — {MONTHS[period.month]} {period.year}</h2>
+          </div>
+          <AttendanceCalendar year={period.year} month={period.month} records={att} />
         </div>
         <RecentVisitsCard userId={userId} />
       </div>

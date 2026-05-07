@@ -221,6 +221,9 @@ export default function AttendancePage() {
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="sk-input w-auto" />
             </div>
           </div>
+
+          {/* Admin back-fill / edit-any-date form */}
+          <AdminBackfillForm employees={employees} onSaved={loadAll} />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b">
@@ -249,6 +252,54 @@ export default function AttendancePage() {
         </div>
       )}
       {showCapture && <SelfieCapture employeeName={user.name} onCapture={onCapture} onClose={() => setShowCapture(false)} />}
+    </div>
+  );
+}
+
+/** Admin back-fill: add/edit attendance for any employee & any date (including past). */
+function AdminBackfillForm({ employees, onSaved }) {
+  const [form, setForm] = useState({ employee_id: "", date: todayISO(), status: "present", notes: "" });
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.employee_id) { toast.error("Pick an employee"); return; }
+    setBusy(true);
+    try {
+      const row = await upsertAttendance({
+        employee_id: form.employee_id,
+        date: form.date,
+        status: form.status,
+        notes: form.notes || null,
+      });
+      // Mark as office attendance, not under review (admin-entered = authoritative)
+      try { await updateAttendance(row.id, { attendance_type: "office", under_review: false, location_label: "🏢 Admin-entered (back-fill)" }); } catch {}
+      toast.success(`Saved — ${form.status.replace("_", " ")} on ${form.date}`);
+      setForm({ ...form, notes: "" });
+      onSaved();
+    } catch (e) { toast.error(e.message || "Failed"); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-[#4DA3FF]/5 to-[#FFA94D]/5 border border-[#4DA3FF]/20" data-testid="admin-backfill-form">
+      <div className="text-xs font-extrabold uppercase tracking-wider text-[#4DA3FF] mb-2 flex items-center gap-1.5">✏️ Add / overwrite attendance (any date)</div>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })} className="sk-input md:col-span-2">
+          <option value="">Select employee…</option>
+          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="sk-input" />
+        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="sk-input">
+          <option value="present">✅ Present</option>
+          <option value="half_day">🟡 Half-day</option>
+          <option value="absent">🔴 Absent</option>
+          <option value="leave">🔵 Leave</option>
+        </select>
+        <button disabled={busy} className="sk-btn-primary">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "+"} Save
+        </button>
+      </form>
+      <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes (optional, e.g. “migrated from paper register”)" className="sk-input mt-2" />
+      <div className="text-[11px] text-slate-500 mt-2">Existing record on the same date for the same employee will be overwritten.</div>
     </div>
   );
 }
