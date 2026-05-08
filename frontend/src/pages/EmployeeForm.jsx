@@ -8,7 +8,8 @@ import { toast } from "sonner";
 const empty = {
   email: "", password: "", name: "", phone: "", role: "employee",
   employee_code: "", designation: "", department: "", joining_date: "",
-  salary_type: "monthly", daily_rate: 0, monthly_salary: 0, working_days: 26,
+  salary_type: "monthly", daily_rate: 0, monthly_salary: 0,
+  paid_leaves_per_month: 4,
   photo_url: "", address: "", bank_account: "", bank_name: "", bank_ifsc: "",
   status: "active",
 };
@@ -45,7 +46,9 @@ export default function EmployeeForm() {
       const p = { ...data };
       p.daily_rate = Number(p.daily_rate || 0);
       p.monthly_salary = Number(p.monthly_salary || 0);
-      p.working_days = Number(p.working_days || 26);
+      p.paid_leaves_per_month = parseInt(p.paid_leaves_per_month, 10);
+      if (Number.isNaN(p.paid_leaves_per_month)) p.paid_leaves_per_month = 4;
+      delete p.working_days;
       if (!p.joining_date) delete p.joining_date;
       if (isNew) {
         await createEmployee(p);
@@ -106,7 +109,15 @@ export default function EmployeeForm() {
             <F label={data.salary_type === "monthly" ? "Monthly Salary (₹)" : "Daily Rate (₹)"}>
               <input type="number" step="1" value={data.salary_type === "monthly" ? data.monthly_salary : data.daily_rate}
                 onChange={e => setData({ ...data, [data.salary_type === "monthly" ? "monthly_salary" : "daily_rate"]: e.target.value })} className="sk-input" /></F>
-            <F label="Working Days/month"><input type="number" value={data.working_days} onChange={e => setData({ ...data, working_days: e.target.value })} className="sk-input" /></F>
+            <F label="Paid Leaves per Month">
+              <input type="number" min="0" max="31" step="1" value={data.paid_leaves_per_month ?? 4}
+                onChange={e => setData({ ...data, paid_leaves_per_month: e.target.value })} className="sk-input" />
+              <div className="text-[10px] text-slate-500 mt-1">Default 4. First N absences in a month are auto-credited as paid.</div>
+            </F>
+            <F label="Working days / month">
+              <input value="auto = total days in month" disabled className="sk-input bg-slate-50 text-slate-500 italic" />
+              <div className="text-[10px] text-slate-500 mt-1">Calculated from calendar (28/29/30/31).</div>
+            </F>
           </div>
         </div>
         <div className="sk-card p-5 space-y-4">
