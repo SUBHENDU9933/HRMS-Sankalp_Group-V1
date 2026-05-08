@@ -53,7 +53,9 @@ function AdminAttendance({ user, isAdmin }) {
   const [loading, setLoading] = useState(true);
 
   const monthStart = `${period.year}-${String(period.month).padStart(2, "0")}-01`;
-  const monthEnd = new Date(period.year, period.month, 0).toISOString().slice(0, 10);
+  // Last day of month — computed as a STRING to avoid timezone shift via toISOString().
+  const lastDay = new Date(Date.UTC(period.year, period.month, 0)).getUTCDate();
+  const monthEnd = `${period.year}-${String(period.month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const reload = async () => {
     setLoading(true);

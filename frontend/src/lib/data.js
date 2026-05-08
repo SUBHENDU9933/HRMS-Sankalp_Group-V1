@@ -168,7 +168,10 @@ export async function createLedger(payload) {
 /** Per-status attendance counts for an employee in a month (used by payslip PDF). */
 export async function attendanceBreakdown(employee_id, year, month) {
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
-  const end = new Date(year, month, 1).toISOString().slice(0, 10);
+  // First day of NEXT month as a STRING (avoids the .toISOString() TZ-shift trap)
+  const ny = month === 12 ? year + 1 : year;
+  const nm = month === 12 ? 1 : month + 1;
+  const end = `${ny}-${String(nm).padStart(2, "0")}-01`;
   const r = await supabase.from("attendance").select("status, under_review")
     .eq("employee_id", employee_id).gte("date", start).lt("date", end);
   if (r.error) throw r.error;
