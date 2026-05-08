@@ -110,7 +110,7 @@ export default function CompanySettings() {
       </Card>
 
       {/* Timing */}
-      <Card title="🕘 Timing rules" hint="Used to decide late/half-day/absent during punch-in (informational; admin can still override).">
+      <Card title="🕘 Timing rules" hint="Strictly enforced on punch-in. Employees: status auto-set based on punch time. Only admin can override afterwards.">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Field label="Office in-time">
             <input type="time" value={t(data.office_in_time) || "09:30"} onChange={e => setField("office_in_time", e.target.value)} className="sk-input" />
@@ -119,15 +119,17 @@ export default function CompanySettings() {
             <input type="time" value={t(data.office_out_time) || "18:30"} onChange={e => setField("office_out_time", e.target.value)} className="sk-input" />
           </Field>
           <Field label="Late after (min)">
-            <input type="number" value={data.late_after_min ?? 15} onChange={e => setField("late_after_min", e.target.value)} className="sk-input" />
+            <input type="number" value={data.late_after_min ?? 30} onChange={e => setField("late_after_min", e.target.value)} className="sk-input" />
           </Field>
           <Field label="Half-day after (min)">
-            <input type="number" value={data.half_day_after_min ?? 120} onChange={e => setField("half_day_after_min", e.target.value)} className="sk-input" />
+            <input type="number" value={data.half_day_after_min ?? 60} onChange={e => setField("half_day_after_min", e.target.value)} className="sk-input" />
           </Field>
           <Field label="Absent after (min)">
-            <input type="number" value={data.absent_after_min ?? 240} onChange={e => setField("absent_after_min", e.target.value)} className="sk-input" />
+            <input type="number" value={data.absent_after_min ?? 120} onChange={e => setField("absent_after_min", e.target.value)} className="sk-input" />
           </Field>
         </div>
+        {/* Live rule preview */}
+        <RulePreview data={data} />
       </Card>
 
       <div className="flex justify-end">
@@ -154,3 +156,27 @@ const Field = ({ label, children }) => (
     {children}
   </div>
 );
+
+/** Live preview showing exactly which window each status applies to (in IST AM/PM). */
+function RulePreview({ data }) {
+  const inT = (data.office_in_time || "09:30").slice(0, 5);
+  const late = parseInt(data.late_after_min ?? 30, 10);
+  const half = parseInt(data.half_day_after_min ?? 60, 10);
+  const absent = parseInt(data.absent_after_min ?? 120, 10);
+  const fmt = (mins) => {
+    const [h, m] = inT.split(":").map(Number);
+    const d = new Date(); d.setHours(h || 9, (m || 30) + mins, 0, 0);
+    return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+  };
+  return (
+    <div className="rounded-xl bg-[#DBEAFE] border-2 border-[#4DA3FF]/30 p-4 mt-2">
+      <div className="text-xs font-extrabold uppercase tracking-wider text-[#1E3A8A] mb-2">📋 Live rule preview (IST)</div>
+      <ul className="text-xs space-y-1.5 text-slate-800">
+        <li><span className="font-bold text-emerald-700">✅ Present</span> — punch in {fmt(0)} to {fmt(late)} ({inT} + {late} min grace)</li>
+        <li><span className="font-bold text-rose-600">🕒 Late</span> (still counted as present) — punch in {fmt(late + 1)} to {fmt(half)}</li>
+        <li><span className="font-bold text-amber-600">🟡 Half-day</span> — punch in {fmt(half + 1)} to {fmt(absent)}</li>
+        <li><span className="font-bold text-red-700">🔴 Absent + Under Review</span> — after {fmt(absent)}. Admin must approve before 8:00 PM, else auto-finalised as Absent.</li>
+      </ul>
+    </div>
+  );
+}

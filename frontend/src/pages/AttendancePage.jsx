@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import SelfieCapture from "@/components/SelfieCapture";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
@@ -59,6 +60,8 @@ function AdminAttendance({ user, isAdmin }) {
 
   const reload = async () => {
     setLoading(true);
+    // Auto-finalize stale "under_review" absences (past dates or after 8 PM IST today)
+    try { await supabase.rpc("finalize_late_review"); } catch {}
     const [emps, all] = await Promise.all([
       listEmployees({ status: "active" }),
       listAttendance({ date_from: monthStart, date_to: monthEnd }),
@@ -416,6 +419,8 @@ function EmployeeAttendance({ user }) {
       underReview = true;
       label = "📡 GPS unavailable — under review";
     }
+    // Late punch-in (status=='absent') always goes for admin review until 8 PM IST.
+    if (status === "absent") underReview = true;
     await upsertAttendance({
       employee_id: user.id, date: todayISO(), status,
       selfie_url, latitude: gps?.latitude, longitude: gps?.longitude,
