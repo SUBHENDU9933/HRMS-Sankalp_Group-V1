@@ -1,31 +1,246 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import SelfieCapture from "@/components/SelfieCapture";
 import AttendanceCalendar from "@/components/AttendanceCalendar";
+import MonthYearPicker from "@/components/MonthYearPicker";
 import {
   listAttendance, upsertAttendance, updateAttendance, deleteAttendance,
   listEmployees, uploadDataUrl, getCompanySettings,
 } from "@/lib/data";
-import { fmtDateTime, todayISO, getGPS } from "@/lib/utils-app";
+import { fmtDateTime, todayISO, getGPS, MONTHS } from "@/lib/utils-app";
 import { haversineMeters, isInsideOffice, fmtDistance } from "@/lib/geo";
-import { Camera, MapPin, CheckCircle2, AlertCircle, Clock, Trash2, Building2, AlertTriangle } from "lucide-react";
+import {
+  Camera, MapPin, CheckCircle2, AlertCircle, Clock, Trash2, Building2,
+  AlertTriangle, Loader2, Users, X,
+} from "lucide-react";
 import { toast } from "sonner";
 
-const Y = new Date().getFullYear();
-const M = new Date().getMonth() + 1;
+const STATUS_OPTIONS = [
+  { value: "present",        label: "✅ Present",        color: "bg-emerald-500" },
+  { value: "late",           label: "🕒 Late",            color: "bg-amber-500" },
+  { value: "half_day",       label: "🟡 Half-day",        color: "bg-amber-400" },
+  { value: "absent",         label: "🔴 Absent",          color: "bg-rose-500" },
+  { value: "paid_leave",     label: "🟦 Paid Leave",      color: "bg-sky-500" },
+  { value: "non_paid_leave", label: "⚫ Non-paid Leave",  color: "bg-slate-500" },
+];
+const STATUS_LABEL = Object.fromEntries(STATUS_OPTIONS.map(o => [o.value, o.label]));
+
+/** Auto-classify status based on company timing rules and current punch-in time. */
+function autoClassifyStatus(settings, now = new Date()) {
+  if (!settings?.office_in_time) return "present";
+  const [h, m] = (settings.office_in_time || "09:30:00").split(":").map(Number);
+  const officeIn = new Date(now); officeIn.setHours(h || 9, m || 30, 0, 0);
+  const lateMin = (now - officeIn) / 60000;
+  if (lateMin < (settings.late_after_min || 15))      return "present";
+  if (lateMin < (settings.half_day_after_min || 120)) return "late";
+  if (lateMin < (settings.absent_after_min || 240))   return "half_day";
+  return "absent";
+}
 
 export default function AttendancePage() {
   const { user, isAdmin, isManager } = useAuth();
   const canAdmin = isAdmin || isManager;
+  return canAdmin ? <AdminAttendance user={user} isAdmin={isAdmin} /> : <EmployeeAttendance user={user} />;
+}
+
+/* ==================== ADMIN VIEW ==================== */
+function AdminAttendance({ user, isAdmin }) {
+  const today = new Date();
+  const [period, setPeriod] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
+  const [employees, setEmployees] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [loading, setLoading] = useState(true);
+
+  const monthStart = `${period.year}-${String(period.month).padStart(2, "0")}-01`;
+  const monthEnd = new Date(period.year, period.month, 0).toISOString().slice(0, 10);
+
+  const reload = async () => {
+    setLoading(true);
+    const [emps, all] = await Promise.all([
+      listEmployees({ status: "active" }),
+      listAttendance({ date_from: monthStart, date_to: monthEnd }),
+    ]);
+    setEmployees(emps);
+    setRows(all);
+    setLoading(false);
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [period.year, period.month]);
+
+  // Per-day aggregate count for calendar
+  const dayCounts = useMemo(() => {
+    const m = {};
+    rows.forEach(r => {
+      m[r.date] = m[r.date] || { present: 0, half: 0, absent: 0, leave: 0 };
+      if (r.status === "present" || r.status === "late" || r.status === "paid_leave") m[r.date].present++;
+      else if (r.status === "half_day") m[r.date].half++;
+      else if (r.status === "absent" || r.status === "non_paid_leave") m[r.date].absent++;
+      else m[r.date].leave++;
+    });
+    return m;
+  }, [rows]);
+
+  // Calendar marker rows (one synthetic record per date so AttendanceCalendar shows a dot)
+  const calendarRecords = Object.keys(dayCounts).map(date => {
+    const d = dayCounts[date];
+    const dominant = d.present >= d.half && d.present >= d.absent ? "present"
+                   : d.absent >= d.half ? "absent" : "half_day";
+    return { date, status: dominant };
+  });
+
+  // Records for the selected date
+  const dateRecords = rows.filter(r => r.date === selectedDate);
+  const employeeMapForDate = useMemo(() => {
+    const m = {};
+    dateRecords.forEach(r => { m[r.employee_id] = r; });
+    return m;
+  }, [dateRecords]);
+
+  const setStatus = async (emp, newStatus) => {
+    const existing = employeeMapForDate[emp.id];
+    try {
+      if (existing) {
+        await updateAttendance(existing.id, { status: newStatus, under_review: false });
+      } else {
+        const r = await upsertAttendance({ employee_id: emp.id, date: selectedDate, status: newStatus });
+        try { await updateAttendance(r.id, { attendance_type: "office", location_label: "🏢 Admin-entered", under_review: false }); } catch {}
+      }
+      toast.success(`${emp.name} → ${STATUS_LABEL[newStatus]}`);
+      reload();
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  const del = async (id) => { if (!window.confirm("Delete this record?")) return; await deleteAttendance(id); toast.success("Deleted"); reload(); };
+
+  return (
+    <div className="sk-page space-y-5" data-testid="attendance-page">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-heading text-2xl md:text-3xl font-extrabold flex items-center gap-2"><span>📅</span> Attendance — Admin</h1>
+          <p className="text-sm text-slate-500 mt-1">Click any date in the calendar to mark / edit that day for every employee.</p>
+        </div>
+        <MonthYearPicker value={period} onChange={setPeriod} />
+      </div>
+
+      {/* Bulk back-fill */}
+      <BulkBackfillForm employees={employees} onSaved={reload} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Calendar */}
+        <div className="sk-card p-5 lg:col-span-3">
+          <h2 className="font-heading text-lg font-extrabold mb-3 flex items-center gap-2"><span>🗓️</span> {MONTHS[period.month]} {period.year} — team overview</h2>
+          {loading ? <div className="text-slate-400 py-8 text-center">Loading…</div> : (
+            <AttendanceCalendar year={period.year} month={period.month} records={calendarRecords} onSelect={setSelectedDate} />
+          )}
+          <div className="mt-3 text-xs text-slate-500">Selected: <b className="text-slate-700">{selectedDate}</b></div>
+        </div>
+
+        {/* Right panel: employee-wise status for selected date */}
+        <div className="sk-card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-lg font-extrabold flex items-center gap-2"><Users className="w-5 h-5 text-[#4DA3FF]" /> {selectedDate}</h2>
+            <span className="text-xs text-slate-500">{dateRecords.length} / {employees.length} marked</span>
+          </div>
+          <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+            {employees.length === 0 && <div className="text-sm text-slate-400 py-4 text-center">No employees</div>}
+            {employees.map(e => {
+              const r = employeeMapForDate[e.id];
+              return (
+                <div key={e.id} className="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-slate-800 truncate">{e.name}</div>
+                    <div className="text-[10px] text-slate-400 truncate">{e.designation || e.role}</div>
+                  </div>
+                  <select
+                    value={r?.status || ""}
+                    onChange={ev => setStatus(e, ev.target.value)}
+                    className="sk-input !py-1 !px-2 text-xs w-auto"
+                    data-testid={`status-${e.id}`}
+                  >
+                    <option value="">— Mark —</option>
+                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  {r && isAdmin && <button onClick={() => del(r.id)} className="text-slate-400 hover:text-rose-500" title="Delete record"><Trash2 className="w-3.5 h-3.5" /></button>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Bulk back-fill: pick an employee, date range, status. Loops upsert for every day in range. */
+function BulkBackfillForm({ employees, onSaved }) {
+  const [form, setForm] = useState({ employee_id: "", date_from: todayISO(), date_to: todayISO(), status: "present", notes: "" });
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.employee_id) { toast.error("Pick an employee"); return; }
+    if (form.date_from > form.date_to) { toast.error("Invalid range"); return; }
+    setBusy(true);
+    try {
+      const start = new Date(form.date_from);
+      const end = new Date(form.date_to);
+      let count = 0, total = 0;
+      const dates = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d).toISOString().slice(0, 10));
+      }
+      total = dates.length;
+      for (const dateISO of dates) {
+        const row = await upsertAttendance({ employee_id: form.employee_id, date: dateISO, status: form.status, notes: form.notes || null });
+        try { await updateAttendance(row.id, { attendance_type: "office", under_review: false, location_label: "🏢 Admin bulk-entry" }); } catch {}
+        count++;
+        setProgress({ count, total });
+      }
+      toast.success(`Saved ${count} day${count > 1 ? "s" : ""} for ${employees.find(x => x.id === form.employee_id)?.name || ""}`);
+      setForm({ ...form, notes: "" });
+      onSaved();
+    } catch (e) { toast.error(e.message || "Failed"); }
+    finally { setBusy(false); setProgress(null); }
+  };
+
+  return (
+    <form onSubmit={submit} className="sk-card p-5 space-y-3 border-2 border-[#4DA3FF]/20" data-testid="admin-backfill-form">
+      <div className="font-heading font-extrabold text-base flex items-center gap-2"><span>✏️</span> Bulk add / overwrite attendance (date range)</div>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })} className="sk-input md:col-span-2" data-testid="bulk-employee">
+          <option value="">Select employee…</option>
+          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        <div>
+          <div className="text-[10px] font-bold uppercase text-slate-500">From</div>
+          <input type="date" required value={form.date_from} onChange={e => setForm({ ...form, date_from: e.target.value })} className="sk-input" data-testid="bulk-from" />
+        </div>
+        <div>
+          <div className="text-[10px] font-bold uppercase text-slate-500">To</div>
+          <input type="date" required value={form.date_to} onChange={e => setForm({ ...form, date_to: e.target.value })} className="sk-input" data-testid="bulk-to" />
+        </div>
+        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="sk-input" data-testid="bulk-status">
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <button disabled={busy} className="sk-btn-primary" data-testid="bulk-submit">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "+"} {progress ? `${progress.count}/${progress.total}` : "Apply"}
+        </button>
+      </div>
+      <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes (optional, e.g. “migrated from paper register”)" className="sk-input" />
+      <div className="text-[11px] text-slate-500">Each date in the range gets the chosen status. Existing entries on those dates are overwritten.</div>
+    </form>
+  );
+}
+
+/* ==================== EMPLOYEE VIEW ==================== */
+function EmployeeAttendance({ user }) {
+  const Y = new Date().getFullYear();
+  const M = new Date().getMonth() + 1;
   const [me, setMe] = useState([]);
-  const [all, setAll] = useState([]);
   const [today, setToday] = useState(null);
   const [showCapture, setShowCapture] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [empId, setEmpId] = useState("");
-  const [employees, setEmployees] = useState([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [settings, setSettings] = useState(null);
 
   const loadMe = async () => {
@@ -33,21 +248,10 @@ export default function AttendancePage() {
     setMe(rows);
     setToday(rows.find(a => a.date === todayISO()) || null);
   };
-  const loadAll = async () => {
-    if (!canAdmin) return;
-    const rows = await listAttendance({ employee_id: empId || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined });
-    setAll(rows);
-  };
+  useEffect(() => { loadMe(); getCompanySettings().then(setSettings).catch(() => {}); /* eslint-disable-next-line */ }, [user.id]);
 
-  useEffect(() => { if (user) { loadMe(); getCompanySettings().then(setSettings).catch(() => {}); } }, [user]); // eslint-disable-line
-  useEffect(() => { if (canAdmin) listEmployees({ status: "active" }).then(setEmployees); }, [canAdmin]);
-  useEffect(() => { loadAll(); }, [empId, dateFrom, dateTo]); // eslint-disable-line
-
-  /** Common save logic — handles geofence check for office attendance. */
   const saveAttendance = async ({ status, selfie_url, gps }) => {
-    let underReview = false, distance = null, label = "🏢 @ Sankalp Office";
-    if (settings) label = `🏢 @ ${settings.name || "Office"}`;
-
+    let underReview = false, distance = null, label = settings ? `🏢 @ ${settings.name || "Office"}` : "🏢 @ Office";
     if (gps?.latitude != null && settings?.office_lat != null) {
       distance = haversineMeters(gps.latitude, gps.longitude, settings.office_lat, settings.office_lng);
       if (!isInsideOffice(gps.latitude, gps.longitude, settings)) {
@@ -58,68 +262,42 @@ export default function AttendancePage() {
       underReview = true;
       label = "📡 GPS unavailable — under review";
     }
-
     await upsertAttendance({
-      employee_id: user.id,
-      date: todayISO(),
-      status,
-      selfie_url,
-      latitude: gps?.latitude,
-      longitude: gps?.longitude,
-      notes: undefined,
+      employee_id: user.id, date: todayISO(), status,
+      selfie_url, latitude: gps?.latitude, longitude: gps?.longitude,
     });
-    // Now patch with extra fields (some may not exist in older DB; ignore failures gracefully)
     try {
-      const justCreated = await listAttendance({ employee_id: user.id });
-      const t = justCreated.find(a => a.date === todayISO());
-      if (t) {
-        await updateAttendance(t.id, {
-          attendance_type: "office",
-          location_label: label,
-          distance_m: distance,
-          under_review: underReview,
-        });
-      }
-    } catch { /* schema not migrated yet */ }
-
+      const just = await listAttendance({ employee_id: user.id });
+      const t = just.find(a => a.date === todayISO());
+      if (t) await updateAttendance(t.id, { attendance_type: "office", location_label: label, distance_m: distance, under_review: underReview });
+    } catch { /* schema mismatch */ }
     if (underReview) toast("Submitted for review (outside geofence)", { icon: "⚠️" });
-    else toast.success("Attendance marked");
-    await loadMe(); if (canAdmin) await loadAll();
+    else toast.success(`Marked ${STATUS_LABEL[status] || status}`);
+    await loadMe();
   };
 
   const onCapture = async (dataUrl, gps) => {
-    setShowCapture(false);
-    setBusy(true);
+    setShowCapture(false); setBusy(true);
     try {
       const url = await uploadDataUrl(dataUrl, "attendance");
-      await saveAttendance({ status: "present", selfie_url: url, gps });
+      const status = autoClassifyStatus(settings);
+      await saveAttendance({ status, selfie_url: url, gps });
     } catch (e) { toast.error("Failed: " + e.message); }
     finally { setBusy(false); }
   };
-  const markStatus = async (status) => {
-    setBusy(true);
-    try {
-      let gps = null; try { gps = await getGPS(); } catch {}
-      await saveAttendance({ status, gps });
-    } catch { toast.error("Failed"); }
-    finally { setBusy(false); }
-  };
-  const updateStatus = async (id, status) => { await updateAttendance(id, { status }); toast.success("Updated"); await loadAll(); };
-  const approve = async (id) => { await updateAttendance(id, { under_review: false, status: "present" }); toast.success("Approved"); await loadAll(); };
-  const del = async (id) => { if (!window.confirm("Delete this record?")) return; await deleteAttendance(id); toast.success("Deleted"); await loadAll(); };
 
-  const StatusIcon = ({ s }) => s === "present" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : s === "absent" ? <AlertCircle className="w-4 h-4 text-rose-500" /> : <Clock className="w-4 h-4 text-amber-500" />;
-
-  const reviewCount = canAdmin ? all.filter(a => a.under_review).length : 0;
+  const StatusIcon = ({ s }) => s === "present" || s === "late" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+    : s === "absent" || s === "non_paid_leave" ? <AlertCircle className="w-4 h-4 text-rose-500" />
+    : <Clock className="w-4 h-4 text-amber-500" />;
 
   return (
     <div className="sk-page space-y-5" data-testid="attendance-page">
       <div>
         <h1 className="font-heading text-2xl md:text-3xl font-extrabold flex items-center gap-2"><span>✅</span> Attendance</h1>
-        <p className="text-sm text-slate-500 mt-1">Selfie + GPS verified daily attendance with office geofence.</p>
+        <p className="text-sm text-slate-500 mt-1">Selfie + GPS verified daily attendance. Status auto-set based on punch-in time vs office timing.</p>
       </div>
 
-      {/* Today's strip — solid brand-blue */}
+      {/* Today's strip */}
       <div className="relative rounded-2xl bg-[#1E3A8A] p-5 text-white shadow-md overflow-hidden" data-testid="today-card">
         <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-[#F97316]" />
         <div className="relative flex items-center justify-between flex-wrap gap-4">
@@ -128,8 +306,8 @@ export default function AttendancePage() {
             {today ? (
               <>
                 <div className="font-heading text-3xl md:text-4xl font-extrabold mt-2 capitalize flex items-center gap-2">
-                  {today.status === "present" ? "✅" : today.status === "half_day" ? "🟡" : "🔴"} {today.status.replace("_", " ")}
-                  {today.under_review && <span className="text-xs bg-white/25 backdrop-blur rounded-full px-2 py-1 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Under review</span>}
+                  {STATUS_LABEL[today.status] || today.status.replace("_", " ")}
+                  {today.under_review && <span className="text-xs bg-white/25 rounded-full px-2 py-1 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Under review</span>}
                 </div>
                 <div className="text-xs mt-2 opacity-95 flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> {fmtDateTime(today.check_in_time)}</div>
                 {today.location_label && <div className="text-xs mt-1 opacity-95">{today.location_label}</div>}
@@ -142,8 +320,6 @@ export default function AttendancePage() {
             <button onClick={() => setShowCapture(true)} disabled={busy} className="bg-[#F97316] text-white hover:bg-[#EA580C] font-extrabold rounded-xl px-5 py-3 shadow active:scale-95 transition flex items-center gap-2" data-testid="mark-attendance-button">
               <Camera className="w-4 h-4" /> {today ? "Re-mark" : "Mark with Selfie"}
             </button>
-            <button onClick={() => markStatus("half_day")} disabled={busy} className="bg-white text-[#1E3A8A] hover:bg-[#FFE4D0] font-bold rounded-xl px-3 py-2 text-sm">🟡 Half-day</button>
-            <button onClick={() => markStatus("absent")} disabled={busy} className="bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl px-3 py-2 text-sm border border-white/30">🔴 Absent</button>
           </div>
         </div>
         {today?.selfie_url && (
@@ -159,7 +335,7 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Calendar + summary */}
+      {/* Calendar + office info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="sk-card p-5 lg:col-span-2">
           <h2 className="font-heading text-lg font-extrabold mb-3 flex items-center gap-2"><span>📅</span> My month at a glance</h2>
@@ -171,15 +347,14 @@ export default function AttendancePage() {
             <div className="text-sm space-y-1.5 text-slate-700">
               <div className="font-bold">{settings.name}</div>
               {settings.address && <div className="text-xs text-slate-500">{settings.address}</div>}
-              <div className="text-xs text-slate-500">📍 {Number(settings.office_lat).toFixed(5)}, {Number(settings.office_lng).toFixed(5)}</div>
-              <div className="text-xs text-slate-500">Geofence radius: <span className="font-bold text-slate-700">{settings.office_radius_m} m</span></div>
-              <div className="text-xs text-slate-500">In-time: {(settings.office_in_time || "").slice(0,5)}</div>
+              <div className="text-xs text-slate-500">In-time: <b>{(settings.office_in_time || "").slice(0, 5)}</b></div>
+              <div className="text-xs text-slate-500">Late after: {settings.late_after_min}m · Half-day after: {settings.half_day_after_min}m · Absent after: {settings.absent_after_min}m</div>
             </div>
           ) : <div className="text-xs text-slate-400">Settings not loaded.</div>}
         </div>
       </div>
 
-      {/* My history table */}
+      {/* History */}
       <div className="sk-card p-5">
         <div className="font-heading font-extrabold mb-3">My history</div>
         <div className="overflow-x-auto">
@@ -193,7 +368,7 @@ export default function AttendancePage() {
                 <tr key={a.id} className="border-b border-slate-100">
                   <td className="py-2 pr-4 font-medium">{a.date}</td>
                   <td className="py-2 pr-4">
-                    <span className={`sk-badge ${a.status === "present" ? "sk-badge-success" : a.status === "absent" ? "sk-badge-danger" : "sk-badge-warning"}`}><StatusIcon s={a.status} />{a.status.replace("_", " ")}</span>
+                    <span className="sk-badge sk-badge-info"><StatusIcon s={a.status} />{STATUS_LABEL[a.status] || a.status.replace("_", " ")}</span>
                     {a.under_review && <span className="ml-1 sk-badge bg-amber-100 text-amber-800">review</span>}
                   </td>
                   <td className="py-2 pr-4 text-slate-500">{a.check_in_time ? fmtDateTime(a.check_in_time) : "—"}</td>
@@ -206,100 +381,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {canAdmin && (
-        <div className="sk-card p-5">
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <div className="font-heading font-extrabold flex items-center gap-2">
-              👥 All attendance records
-              {reviewCount > 0 && <span className="sk-badge bg-amber-100 text-amber-800">{reviewCount} pending review</span>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={empId} onChange={e => setEmpId(e.target.value)} className="sk-input w-auto">
-                <option value="">All Employees</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="sk-input w-auto" />
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="sk-input w-auto" />
-            </div>
-          </div>
-
-          {/* Admin back-fill / edit-any-date form */}
-          <AdminBackfillForm employees={employees} onSaved={loadAll} />
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b">
-                <th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Employee</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Location</th><th className="py-2 pr-4">Selfie</th><th className="py-2 pr-4 text-right">Actions</th>
-              </tr></thead>
-              <tbody>
-                {all.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-slate-400">No records</td></tr>}
-                {all.map(a => (
-                  <tr key={a.id} className={`border-b border-slate-100 ${a.under_review ? "bg-amber-50/40" : ""}`}>
-                    <td className="py-2 pr-4">{a.date}</td>
-                    <td className="py-2 pr-4 font-semibold">{a.employee_name}</td>
-                    <td className="py-2 pr-4">
-                      <select value={a.status} onChange={e => updateStatus(a.id, e.target.value)} className="sk-input w-auto py-1 text-xs">
-                        <option value="present">Present</option><option value="half_day">Half-day</option><option value="absent">Absent</option>
-                      </select>
-                      {a.under_review && <div className="mt-1"><button onClick={() => approve(a.id)} className="text-[10px] font-bold text-emerald-600 hover:underline">Approve →</button></div>}
-                    </td>
-                    <td className="py-2 pr-4 text-xs text-slate-500">{a.location_label || (a.latitude != null ? `${a.latitude.toFixed(4)}, ${a.longitude.toFixed(4)}` : "—")}{a.distance_m != null && <div className="opacity-70">{fmtDistance(a.distance_m)} from office</div>}</td>
-                    <td className="py-2 pr-4">{a.selfie_url ? <a href={a.selfie_url} target="_blank" rel="noreferrer"><img src={a.selfie_url} className="w-9 h-9 rounded object-cover border" alt="" /></a> : "—"}</td>
-                    <td className="py-2 pr-4 text-right">{isAdmin && <button onClick={() => del(a.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
       {showCapture && <SelfieCapture employeeName={user.name} onCapture={onCapture} onClose={() => setShowCapture(false)} />}
-    </div>
-  );
-}
-
-/** Admin back-fill: add/edit attendance for any employee & any date (including past). */
-function AdminBackfillForm({ employees, onSaved }) {
-  const [form, setForm] = useState({ employee_id: "", date: todayISO(), status: "present", notes: "" });
-  const [busy, setBusy] = useState(false);
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!form.employee_id) { toast.error("Pick an employee"); return; }
-    setBusy(true);
-    try {
-      const row = await upsertAttendance({
-        employee_id: form.employee_id,
-        date: form.date,
-        status: form.status,
-        notes: form.notes || null,
-      });
-      // Mark as office attendance, not under review (admin-entered = authoritative)
-      try { await updateAttendance(row.id, { attendance_type: "office", under_review: false, location_label: "🏢 Admin-entered (back-fill)" }); } catch {}
-      toast.success(`Saved — ${form.status.replace("_", " ")} on ${form.date}`);
-      setForm({ ...form, notes: "" });
-      onSaved();
-    } catch (e) { toast.error(e.message || "Failed"); }
-    finally { setBusy(false); }
-  };
-  return (
-    <div className="mb-4 p-4 rounded-xl bg-[#DBEAFE] border-2 border-[#4DA3FF]/30" data-testid="admin-backfill-form">
-      <div className="text-xs font-extrabold uppercase tracking-wider text-[#4DA3FF] mb-2 flex items-center gap-1.5">✏️ Add / overwrite attendance (any date)</div>
-      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-5 gap-2">
-        <select required value={form.employee_id} onChange={e => setForm({ ...form, employee_id: e.target.value })} className="sk-input md:col-span-2">
-          <option value="">Select employee…</option>
-          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
-        <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="sk-input" />
-        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="sk-input">
-          <option value="present">✅ Present</option>
-          <option value="half_day">🟡 Half-day</option>
-          <option value="absent">🔴 Absent</option>
-          <option value="leave">🔵 Leave</option>
-        </select>
-        <button disabled={busy} className="sk-btn-primary">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "+"} Save
-        </button>
-      </form>
-      <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes (optional, e.g. “migrated from paper register”)" className="sk-input mt-2" />
-      <div className="text-[11px] text-slate-500 mt-2">Existing record on the same date for the same employee will be overwritten.</div>
     </div>
   );
 }
