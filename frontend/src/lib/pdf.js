@@ -16,12 +16,13 @@ const TEXT_GRAY   = [100, 116, 139];
 const WHITE       = [255, 255, 255];
 
 /**
- * @param {object} p     payroll row
- * @param {object} emp   employee row
- * @param {object} co    company_settings row
- * @param {array}  disbs disbursement entries (optional)
+ * @param {object} p         payroll row
+ * @param {object} emp       employee row
+ * @param {object} co        company_settings row
+ * @param {array}  disbs     disbursement entries (optional)
+ * @param {object} breakdown { present, late, half_day, absent, paid_leave, non_paid_leave } (optional)
  */
-export async function generatePayslipPdf(p, emp, co = null, disbs = []) {
+export async function generatePayslipPdf(p, emp, co = null, disbs = [], breakdown = null) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
 
@@ -172,20 +173,24 @@ export async function generatePayslipPdf(p, emp, co = null, disbs = []) {
   });
   cy = doc.lastAutoTable.finalY + 5;
 
-  // ====== ATTENDANCE SUMMARY ======
+  // ====== ATTENDANCE SUMMARY (6 statuses) ======
   drawSectionHeader(doc, "ATTENDANCE SUMMARY", "people", NAVY, cy);
   cy += 9;
 
+  const b = breakdown || {};
   autoTable(doc, {
     startY: cy,
     margin: { left: 14, right: 14 },
     body: [
-      ["Present Days", String(p.present_days ?? 0)],
-      ["Half Days",    String(p.half_days ?? 0)],
-      ["Absent Days",  String(p.absent_days ?? 0)],
+      ["Present",         String(b.present ?? p.present_days ?? 0)],
+      ["Late",            String(b.late ?? 0)],
+      ["Half Day",        String(b.half_day ?? p.half_days ?? 0)],
+      ["Absent",          String(b.absent ?? 0)],
+      ["Paid Leave",      String(b.paid_leave ?? 0)],
+      ["Non-paid Leave",  String(b.non_paid_leave ?? 0)],
     ],
     theme: "grid",
-    styles: { fontSize: 10, cellPadding: 2.6, lineColor: BLUE_LINE, lineWidth: 0.2, textColor: TEXT_DARK },
+    styles: { fontSize: 10, cellPadding: 2.4, lineColor: BLUE_LINE, lineWidth: 0.2, textColor: TEXT_DARK },
     columnStyles: {
       0: { cellWidth: "auto" },
       1: { halign: "right", cellWidth: 40, fontStyle: "bold" },
@@ -301,10 +306,35 @@ export async function generatePayslipPdf(p, emp, co = null, disbs = []) {
   // ====== FOOTER ======
   doc.setFontSize(8);
   doc.setTextColor(...TEXT_GRAY);
-  doc.text(`Generated on ${new Date().toLocaleString()} · Computer-generated payslip — no signature required.`, 14, cy + 4);
+  doc.text(`Generated on ${new Date().toLocaleString()}`, 14, cy + 4);
+
+  // ====== SIGNATURES (left = employee, right = office) at bottom of page ======
+  drawSignatures(doc, W, doc.internal.pageSize.getHeight(), emp?.name, co?.name);
 
   const safeName = (emp?.name || "employee").replace(/\s+/g, "_");
   doc.save(`payslip_${safeName}_${MONTHS[p.month]}_${p.year}.pdf`);
+}
+
+/** Bottom signature row — employee on left, office on right. */
+function drawSignatures(doc, W, H, empName, coName) {
+  const y = H - 30;
+  // Lines
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.5);
+  doc.line(20, y, 80, y);
+  doc.line(W - 80, y, W - 20, y);
+  // Labels
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...NAVY);
+  doc.text("Employee Signature", 50, y + 5, { align: "center" });
+  doc.text("Office / Authorised Signatory", W - 50, y + 5, { align: "center" });
+  // Names below
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...TEXT_GRAY);
+  if (empName) doc.text(empName, 50, y + 10, { align: "center" });
+  if (coName)  doc.text(coName, W - 50, y + 10, { align: "center" });
 }
 
 /* ----------------------- Helper builders ----------------------- */

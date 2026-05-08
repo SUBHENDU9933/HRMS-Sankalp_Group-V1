@@ -165,7 +165,20 @@ export async function ledgerBalance(employee_id) {
 export async function createLedger(payload) {
   return thr(await supabase.from("ledger").insert(payload).select().single());
 }
-/** Disbursements paid for a particular (employee, year, month). */
+/** Per-status attendance counts for an employee in a month (used by payslip PDF). */
+export async function attendanceBreakdown(employee_id, year, month) {
+  const start = `${year}-${String(month).padStart(2, "0")}-01`;
+  const end = new Date(year, month, 1).toISOString().slice(0, 10);
+  const r = await supabase.from("attendance").select("status, under_review")
+    .eq("employee_id", employee_id).gte("date", start).lt("date", end);
+  if (r.error) throw r.error;
+  const o = { present: 0, late: 0, half_day: 0, absent: 0, paid_leave: 0, non_paid_leave: 0 };
+  (r.data || []).forEach(a => {
+    if (a.under_review) return;
+    if (o[a.status] != null) o[a.status]++;
+  });
+  return o;
+}
 export async function listDisbursements({ employee_id, paid_for_year, paid_for_month } = {}) {
   let q = supabase.from("ledger").select("*, employee:employees(name)").eq("entry_type", "disbursement").order("entry_date", { ascending: false });
   if (employee_id) q = q.eq("employee_id", employee_id);

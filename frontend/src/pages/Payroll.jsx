@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import {
   listPayroll, generatePayroll, updatePayroll, deletePayroll,
   listEmployees, getEmployee, getCompanySettings, liveSalary, listDisbursements,
+  attendanceBreakdown,
 } from "@/lib/data";
 import { generatePayslipPdf } from "@/lib/pdf";
 import { fmtINR, MONTHS, fmtDateTime } from "@/lib/utils-app";
@@ -42,12 +43,13 @@ export default function Payroll() {
 
   const download = async (p) => {
     try {
-      const [emp, co, disbs] = await Promise.all([
+      const [emp, co, disbs, breakdown] = await Promise.all([
         getEmployee(p.employee_id),
         getCompanySettings().catch(() => null),
         listDisbursements({ employee_id: p.employee_id, paid_for_year: p.year, paid_for_month: p.month }).catch(() => []),
+        attendanceBreakdown(p.employee_id, p.year, p.month).catch(() => null),
       ]);
-      await generatePayslipPdf(p, emp, co, disbs);
+      await generatePayslipPdf(p, emp, co, disbs, breakdown);
     } catch (e) { toast.error("Download failed: " + e.message); }
   };
 
