@@ -135,41 +135,186 @@ function AdminAttendance({ user, isAdmin }) {
           <div className="mt-3 text-xs text-slate-500">Selected: <b className="text-slate-700">{selectedDate}</b></div>
         </div>
 
-        {/* Right panel: employee-wise status for selected date */}
+        {/* Right panel: employee-wise FULL detail for selected date */}
         <div className="sk-card p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading text-lg font-extrabold flex items-center gap-2"><Users className="w-5 h-5 text-[#4DA3FF]" /> {selectedDate}</h2>
             <span className="text-xs text-slate-500">{dateRecords.length} / {employees.length} marked</span>
           </div>
-          <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
             {employees.length === 0 && <div className="text-sm text-slate-400 py-4 text-center">No employees</div>}
             {employees.map(e => {
               const r = employeeMapForDate[e.id];
-              return (
-                <div key={e.id} className="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm text-slate-800 truncate">{e.name}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{e.designation || e.role}</div>
-                  </div>
-                  <select
-                    value={r?.status || ""}
-                    onChange={ev => setStatus(e, ev.target.value)}
-                    className="sk-input !py-1 !px-2 text-xs w-auto"
-                    data-testid={`status-${e.id}`}
-                  >
-                    <option value="">— Mark —</option>
-                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {r && isAdmin && <button onClick={() => del(r.id)} className="text-slate-400 hover:text-rose-500" title="Delete record"><Trash2 className="w-3.5 h-3.5" /></button>}
-                </div>
-              );
+              return <DateDetailCard key={e.id} emp={e} record={r} onSetStatus={setStatus} onDelete={del} isAdmin={isAdmin} />;
             })}
           </div>
         </div>
       </div>
+
+      {/* Employee-wise FULL MONTH report */}
+      <EmployeeMonthReport employees={employees} period={period} rows={rows} isAdmin={isAdmin} onChanged={reload} />
     </div>
   );
 }
+
+/** Detail card for one employee on the selected date — shows selfie, time, GPS, status. */
+function DateDetailCard({ emp, record, onSetStatus, onDelete, isAdmin }) {
+  const r = record;
+  const status = r?.status;
+  const opt = STATUS_OPTIONS.find(o => o.value === status);
+  return (
+    <div className={`rounded-xl border ${r ? "border-slate-200" : "border-dashed border-slate-300 bg-slate-50/40"} p-3`}>
+      <div className="flex items-start gap-3">
+        {/* Selfie thumb or initials */}
+        {r?.selfie_url ? (
+          <a href={r.selfie_url} target="_blank" rel="noreferrer" className="shrink-0">
+            <img src={r.selfie_url} alt="" className="w-14 h-14 rounded-lg object-cover border-2 border-[#F97316]" />
+          </a>
+        ) : (
+          <div className="shrink-0 w-14 h-14 rounded-lg bg-[#1E3A8A] grid place-items-center text-white font-extrabold text-base border-2 border-[#FFA94D]">
+            {emp.name?.[0]?.toUpperCase() || "?"}
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-bold text-sm text-slate-900 truncate">{emp.name}</div>
+            {opt && <span className={`text-[10px] px-2 py-0.5 rounded-full text-white font-bold ${opt.color}`}>{opt.label}</span>}
+          </div>
+          <div className="text-[10px] text-slate-400 truncate">{emp.designation || emp.role}</div>
+
+          {r ? (
+            <div className="mt-1.5 space-y-0.5 text-[11px] text-slate-600">
+              {r.check_in_time && <div className="flex items-center gap-1"><Clock className="w-3 h-3 text-[#4DA3FF]" /> {fmtDateTime(r.check_in_time)}</div>}
+              {r.location_label && <div className="truncate">{r.location_label}</div>}
+              {r.latitude != null && (
+                <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500">
+                  <MapPin className="w-3 h-3 text-[#F97316]" /> {r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}
+                  {r.distance_m != null && <span> · {fmtDistance(r.distance_m)} from office</span>}
+                </div>
+              )}
+              {r.under_review && <div className="text-amber-700 font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Under review</div>}
+            </div>
+          ) : (
+            <div className="mt-1 text-[11px] text-slate-400 italic">No attendance recorded for this date.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Edit / Delete row */}
+      <div className="mt-2.5 flex items-center gap-1.5">
+        <select
+          value={status || ""}
+          onChange={ev => onSetStatus(emp, ev.target.value)}
+          className="sk-input !py-1 !px-2 text-xs flex-1"
+          data-testid={`status-${emp.id}`}
+        >
+          <option value="">— Mark —</option>
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {r && isAdmin && <button onClick={() => onDelete(r.id)} className="text-rose-500 hover:bg-rose-50 p-1.5 rounded" title="Delete record"><Trash2 className="w-3.5 h-3.5" /></button>}
+      </div>
+    </div>
+  );
+}
+
+/** Employee-wise full month report — pick an employee, see every day with details. */
+function EmployeeMonthReport({ employees, period, rows, isAdmin, onChanged }) {
+  const [empId, setEmpId] = useState("");
+  const empRows = rows
+    .filter(r => r.employee_id === empId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const summary = empRows.reduce((acc, r) => {
+    if (r.status === "present" || r.status === "late" || r.status === "paid_leave") acc.present++;
+    else if (r.status === "half_day") acc.half++;
+    else if (r.status === "absent" || r.status === "non_paid_leave" || r.status === "leave") acc.absent++;
+    return acc;
+  }, { present: 0, half: 0, absent: 0 });
+
+  const onDelete = async (id) => {
+    if (!window.confirm("Delete this record?")) return;
+    try { await deleteAttendance(id); toast.success("Deleted"); onChanged(); } catch (e) { toast.error(e.message); }
+  };
+
+  return (
+    <div className="sk-card p-5" data-testid="employee-month-report">
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <h2 className="font-heading text-lg font-extrabold flex items-center gap-2"><span>📋</span> Employee monthly report</h2>
+        <select value={empId} onChange={e => setEmpId(e.target.value)} className="sk-input w-auto md:w-72" data-testid="report-employee">
+          <option value="">Select an employee…</option>
+          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </div>
+
+      {!empId ? (
+        <div className="py-8 text-center text-slate-400 text-sm">Choose an employee to see {MONTHS[period.month]} {period.year} report.</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <SummaryCard color="emerald" label="Present (incl. late + paid leave)" value={summary.present} />
+            <SummaryCard color="amber"   label="Half-day" value={summary.half} />
+            <SummaryCard color="rose"    label="Absent / Non-paid" value={summary.absent} />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b">
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Check-in</th>
+                <th className="py-2 pr-3">Location / GPS</th>
+                <th className="py-2 pr-3">Distance</th>
+                <th className="py-2 pr-3">Selfie</th>
+                <th className="py-2 pr-3 text-right"></th>
+              </tr></thead>
+              <tbody>
+                {empRows.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-400">No attendance for this employee in {MONTHS[period.month]} {period.year}</td></tr>}
+                {empRows.map(r => {
+                  const opt = STATUS_OPTIONS.find(o => o.value === r.status);
+                  return (
+                    <tr key={r.id} className={`border-b border-slate-100 ${r.under_review ? "bg-amber-50/40" : ""}`}>
+                      <td className="py-2 pr-3 font-semibold whitespace-nowrap">{r.date}</td>
+                      <td className="py-2 pr-3">
+                        {opt && <span className={`text-[10px] px-2 py-0.5 rounded-full text-white font-bold ${opt.color}`}>{opt.label}</span>}
+                        {r.under_review && <span className="ml-1 sk-badge bg-amber-100 text-amber-800">review</span>}
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-slate-600">{r.check_in_time ? fmtDateTime(r.check_in_time) : "—"}</td>
+                      <td className="py-2 pr-3 text-xs">
+                        <div>{r.location_label || "—"}</div>
+                        {r.latitude != null && <div className="font-mono text-[10px] text-slate-500">{r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}</div>}
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-slate-500">{r.distance_m != null ? fmtDistance(r.distance_m) : "—"}</td>
+                      <td className="py-2 pr-3">
+                        {r.selfie_url
+                          ? <a href={r.selfie_url} target="_blank" rel="noreferrer"><img src={r.selfie_url} className="w-10 h-10 rounded object-cover border" alt="" /></a>
+                          : "—"}
+                      </td>
+                      <td className="py-2 pr-3 text-right">{isAdmin && <button onClick={() => onDelete(r.id)} className="text-rose-500 hover:bg-rose-50 p-1 rounded"><Trash2 className="w-3.5 h-3.5" /></button>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const SummaryCard = ({ color, label, value }) => {
+  const STYLES = {
+    emerald: "bg-emerald-50 border-emerald-100 text-emerald-700",
+    amber:   "bg-amber-50 border-amber-100 text-amber-700",
+    rose:    "bg-rose-50 border-rose-100 text-rose-700",
+  };
+  return (
+    <div className={`rounded-xl p-3 border ${STYLES[color]}`}>
+      <div className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</div>
+      <div className="font-heading text-2xl font-extrabold mt-1">{value}</div>
+    </div>
+  );
+};
 
 /** Bulk back-fill: pick an employee, date range, status. Loops upsert for every day in range. */
 function BulkBackfillForm({ employees, onSaved }) {
