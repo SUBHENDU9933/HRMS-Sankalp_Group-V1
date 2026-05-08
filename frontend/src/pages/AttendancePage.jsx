@@ -328,14 +328,21 @@ function BulkBackfillForm({ employees, onSaved }) {
     if (form.date_from > form.date_to) { toast.error("Invalid range"); return; }
     setBusy(true);
     try {
-      const start = new Date(form.date_from);
-      const end = new Date(form.date_to);
-      let count = 0, total = 0;
+      // UTC math so the last day of the month is never dropped due to timezone shift
+      const [y1, m1, d1] = form.date_from.split("-").map(Number);
+      const [y2, m2, d2] = form.date_to.split("-").map(Number);
+      const cur  = new Date(Date.UTC(y1, m1 - 1, d1));
+      const last = new Date(Date.UTC(y2, m2 - 1, d2));
       const dates = [];
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        dates.push(new Date(d).toISOString().slice(0, 10));
+      while (cur <= last) {
+        const yyyy = cur.getUTCFullYear();
+        const mm   = String(cur.getUTCMonth() + 1).padStart(2, "0");
+        const dd   = String(cur.getUTCDate()).padStart(2, "0");
+        dates.push(`${yyyy}-${mm}-${dd}`);
+        cur.setUTCDate(cur.getUTCDate() + 1);
       }
-      total = dates.length;
+      let count = 0;
+      const total = dates.length;
       for (const dateISO of dates) {
         const row = await upsertAttendance({ employee_id: form.employee_id, date: dateISO, status: form.status, notes: form.notes || null });
         try { await updateAttendance(row.id, { attendance_type: "office", under_review: false, location_label: "🏢 Admin bulk-entry" }); } catch {}
