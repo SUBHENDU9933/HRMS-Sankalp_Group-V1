@@ -4,7 +4,7 @@ import { Upload, Camera, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { LOGO } from "@/lib/utils-app";
 import {
-  listOpenPositions, checkDuplicateApplication, submitApplication, uploadFile,
+  listOpenPositions, checkDuplicateApplication, submitApplication, uploadFile, sendStatusEmail,
 } from "@/lib/recruitment";
 import { uploadDataUrl } from "@/lib/supabase";
 import PhotoCapture from "@/components/PhotoCapture";
@@ -102,6 +102,7 @@ export default function Apply() {
       };
       const created = await submitApplication(payload);
       setDone(created.application_number);
+      sendStatusEmail(created.id, "submitted"); // fire-and-forget — never blocks the confirmation screen
     } catch (err) {
       toast.error(err.message || "Submission failed. Please try again.");
     } finally {
