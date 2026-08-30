@@ -14,6 +14,10 @@ import Payroll from "@/pages/Payroll";
 import Ledger from "@/pages/Ledger";
 import Profile from "@/pages/Profile";
 import CompanySettings from "@/pages/CompanySettings";
+import Apply from "@/pages/Apply";
+import Recruitment from "@/pages/Recruitment";
+import ApplicationDetail from "@/pages/ApplicationDetail";
+import JobOpenings from "@/pages/JobOpenings";
 import "@/App.css";
 
 function Protected({ children, roles }) {
@@ -31,6 +35,7 @@ function App() {
         <Toaster position="top-right" richColors />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/apply" element={<Apply />} />
           <Route element={<Protected><Layout /></Protected>}>
             <Route index element={<Dashboard />} />
             <Route path="visits" element={<FieldVisits />} />
@@ -44,6 +49,9 @@ function App() {
             <Route path="ledger" element={<Ledger />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Protected roles={["admin"]}><CompanySettings /></Protected>} />
+            <Route path="recruitment" element={<Protected roles={["admin","manager"]}><Recruitment /></Protected>} />
+            <Route path="recruitment/openings" element={<Protected roles={["admin"]}><JobOpenings /></Protected>} />
+            <Route path="recruitment/:id" element={<Protected roles={["admin","manager"]}><ApplicationDetail /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
