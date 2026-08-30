@@ -1,0 +1,113 @@
+/**
+ * Recruitment module data access layer — same thin-wrapper pattern as lib/data.js.
+ * Status changes NEVER go through a raw .update() — always via the change_application_status
+ * RPC, which is the single choke point for status-history logging + email triggers.
+ */
+import { supabase, uploadFile } from "./supabase";
+export { uploadFile };
+
+const thr = (r) => { if (r.error) throw r.error; return r.data; };
+
+/* ---------------- public (no auth — used on /apply) ---------------- */
+export async function listOpenPositions() {
+  return thr(await supabase.from("job_openings").select("id,title,department").eq("status", "open").order("title"));
+}
+export async function checkDuplicateApplication(job_opening_id, email, phone) {
+  const { data, error } = await supabase.rpc("check_duplicate_application", {
+    p_job_opening_id: job_opening_id, p_email: email, p_phone: phone,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+export async function submitApplication(payload) {
+  return thr(await supabase.from("job_applications").insert(payload).select().single());
+}
+
+/* ---------------- admin: job openings ---------------- */
+export async function listJobOpenings() {
+  return thr(await supabase.from("job_openings").select("*").order("created_at", { ascending: false }));
+}
+export async function saveJobOpening({ id, title, department, description, status }) {
+  const { data, error } = await supabase.rpc("upsert_job_opening", {
+    p_id: id || null, p_title: title, p_department: department || null,
+    p_description: description || null, p_status: status || "open",
+  });
+  if (error) throw error;
+  return data;
+}
+
+/* ---------------- admin: applications ---------------- */
+export async function listApplications({ q = "", status = "", job_opening_id = "" } = {}) {
+  let query = supabase.from("job_applications")
+    .select("*, job_opening:job_openings(title), interviewer_employee:employees!job_applications_interviewer_fkey(name)")
+    .order("applied_at", { ascending: false });
+  if (status) query = query.eq("status", status);
+  if (job_opening_id) query = query.eq("job_opening_id", job_opening_id);
+  if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,application_number.ilike.%${q}%`);
+  const rows = thr(await query);
+  return rows.map(r => ({ ...r, job_title: r.job_opening?.title, interviewer_name: r.interviewer_employee?.name }));
+}
+export async function getApplication(id) {
+  const r = thr(await supabase.from("job_applications")
+    .select("*, job_opening:job_openings(title), interviewer_employee:employees!job_applications_interviewer_fkey(name)")
+    .eq("id", id).single());
+  return { ...r, job_title: r.job_opening?.title, interviewer_name: r.interviewer_employee?.name };
+}
+export async function getApplicationHistory(application_id) {
+  return thr(await supabase.from("application_status_history")
+    .select("*, actor:employees(name)").eq("application_id", application_id)
+    .order("changed_at", { ascending: false }));
+}
+export async function changeStatus(args) {
+  const { data, error } = await supabase.rpc("change_application_status", {
+    p_application_id: args.application_id,
+    p_new_status: args.new_status,
+    p_note: args.note || null,
+    p_interview_date: args.interview_date || null,
+    p_interview_time: args.interview_time || null,
+    p_interview_mode: args.interview_mode || null,
+    p_interviewer: args.interviewer || null,
+    p_interview_feedback: args.interview_feedback || null,
+    p_interview_rating: args.interview_rating || null,
+  });
+  if (error) throw error;
+  return data;
+}
+export async function updateNotes(application_id, hr_notes) {
+  const { data, error } = await supabase.rpc("update_application_notes", {
+    p_application_id: application_id, p_hr_notes: hr_notes,
+  });
+  if (error) throw error;
+  return data;
+}
+export async function markConverted(application_id, employee_id) {
+  const { data, error } = await supabase.rpc("mark_application_converted", {
+    p_application_id: application_id, p_employee_id: employee_id,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/* ---------------- email (best-effort, never blocks status change) ---------------- */
+export async function sendStatusEmail(application_id, kind) {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    const url = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/recruitment-email`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token || process.env.REACT_APP_SUPABASE_ANON_KEY}`,
+        apikey: process.env.REACT_APP_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ application_id, kind }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error || "Email send failed");
+    return body;
+  } catch (e) {
+    // Non-fatal — status already changed. Caller shows a toast warning.
+    return { ok: false, error: e.message };
+  }
+}
