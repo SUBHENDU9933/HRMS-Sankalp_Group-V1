@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { LOGO } from "@/lib/utils-app";
 import {
   LayoutDashboard, MapPinned, ClipboardCheck, Users, Wallet, BookOpen,
-  UserCircle, LogOut, Menu, Plus, Settings as SettingsIcon
+  UserCircle, LogOut, Menu, Plus, Settings as SettingsIcon, Briefcase
 } from "lucide-react";
 import { useState } from "react";
 
@@ -12,6 +12,7 @@ const ALL_ITEMS = [
   { to: "/visits", label: "Field Visits", icon: MapPinned, roles: ["admin","manager","employee"] },
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck, roles: ["admin","manager","employee"] },
   { to: "/employees", label: "Employees", icon: Users, roles: ["admin","manager"] },
+  { to: "/recruitment", label: "Recruitment", icon: Briefcase, roles: ["admin","manager"] },
   { to: "/payroll", label: "Payroll", icon: Wallet, roles: ["admin","manager","employee"] },
   { to: "/ledger", label: "Ledger", icon: BookOpen, roles: ["admin","manager","employee"] },
   { to: "/settings", label: "Settings", icon: SettingsIcon, roles: ["admin"] },
