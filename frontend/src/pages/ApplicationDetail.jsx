@@ -146,8 +146,9 @@ export default function ApplicationDetail() {
           {canConvert && <button disabled={busy} className="sk-btn-accent" onClick={goConvert}><UserPlus className="w-4 h-4" /> Convert to Employee</button>}
           {EMAIL_ON.has(app.status) && (
             <button disabled={busy} className="sk-btn-ghost" onClick={async () => {
-              const r = await sendStatusEmail(id, app.status);
+              const r = await sendStatusEmail(id, app.status, true);
               toast[r?.ok === false ? "error" : "success"](r?.ok === false ? "Resend failed" : "Email resent");
+              load();
             }}><Mail className="w-4 h-4" /> Resend Email</button>
           )}
         </div>
