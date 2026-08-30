@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { getEmployee, createEmployee, updateEmployee, uploadDataUrl } from "@/lib/data";
+import { markConverted } from "@/lib/recruitment";
 import { useAuth } from "@/lib/auth";
 import { ArrowLeft, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -18,8 +19,10 @@ export default function EmployeeForm() {
   const { id } = useParams();
   const isNew = !id;
   const nav = useNavigate();
+  const location = useLocation();
   const { isAdmin } = useAuth();
-  const [data, setData] = useState(empty);
+  const fromApplicationId = location.state?.fromApplicationId || null;
+  const [data, setData] = useState(() => ({ ...empty, ...(location.state?.prefill || {}) }));
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(!isNew);
 
@@ -51,8 +54,13 @@ export default function EmployeeForm() {
       delete p.working_days;
       if (!p.joining_date) delete p.joining_date;
       if (isNew) {
-        await createEmployee(p);
+        const created = await createEmployee(p);
+        const newEmp = Array.isArray(created) ? created[0] : created;
         toast.success("Employee created — they can login with their email & password");
+        if (fromApplicationId && newEmp?.id) {
+          try { await markConverted(fromApplicationId, newEmp.id); }
+          catch (convErr) { toast.warning("Employee created, but linking back to the application failed: " + (convErr.message || "")); }
+        }
       } else {
         if (!p.password) delete p.password;
         await updateEmployee(id, p);
