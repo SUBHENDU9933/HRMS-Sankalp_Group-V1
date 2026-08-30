@@ -104,7 +104,7 @@ export async function markConverted(application_id, employee_id) {
 }
 
 /* ---------------- email (best-effort, never blocks status change) ---------------- */
-export async function sendStatusEmail(application_id, kind) {
+export async function sendStatusEmail(application_id, kind, force = false) {
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
@@ -116,7 +116,7 @@ export async function sendStatusEmail(application_id, kind) {
         Authorization: `Bearer ${token || process.env.REACT_APP_SUPABASE_ANON_KEY}`,
         apikey: process.env.REACT_APP_SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ application_id, kind }),
+      body: JSON.stringify({ application_id, kind, force }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body?.error || "Email send failed");
