@@ -10,7 +10,7 @@ const thr = (r) => { if (r.error) throw r.error; return r.data; };
 
 /* ---------------- public (no auth — used on /apply) ---------------- */
 export async function listOpenPositions() {
-  return thr(await supabase.from("job_openings").select("id,title,department").eq("status", "open").order("title"));
+  return thr(await supabase.from("job_openings").select("id,title,department,description").eq("status", "open").order("title"));
 }
 export async function checkDuplicateApplication(job_opening_id, email, phone) {
   const { data, error } = await supabase.rpc("check_duplicate_application", {
