@@ -19,8 +19,23 @@ export async function checkDuplicateApplication(job_opening_id, email, phone) {
   if (error) throw error;
   return data?.[0] || null;
 }
-export async function submitApplication(payload) {
-  return thr(await supabase.from("job_applications").insert(payload).select().single());
+export async function submitApplication(p) {
+  const { data, error } = await supabase.rpc("submit_application", {
+    p_job_opening_id: p.job_opening_id,
+    p_name: p.name,
+    p_email: p.email,
+    p_phone: p.phone,
+    p_experience_years: p.experience_years ?? null,
+    p_current_company: p.current_company || null,
+    p_education: p.education || null,
+    p_current_address: p.current_address || null,
+    p_expected_salary: p.expected_salary ?? null,
+    p_cover_note: p.cover_note || null,
+    p_cv_url: p.cv_url,
+    p_photo_url: p.photo_url || null,
+  });
+  if (error) throw error;
+  return data;
 }
 
 /* ---------------- admin: job openings ---------------- */
