@@ -9,7 +9,7 @@ import {
 import { uploadDataUrl } from "@/lib/supabase";
 import PhotoCapture from "@/components/PhotoCapture";
 
-const MAX_CV_MB = 5;
+const MAX_CV_MB = 3;
 const MAX_PHOTO_MB = 3;
 
 const empty = {
@@ -36,10 +36,12 @@ export default function Apply() {
     listOpenPositions().then(setOpenings).catch(() => toast.error("Could not load open positions")).finally(() => setLoading(false));
   }, []);
 
+  const selectedOpening = openings.find(o => o.id === data.job_opening_id) || null;
+
   const onCv = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!/\.(pdf|doc|docx)$/i.test(f.name)) { toast.error("CV must be a PDF or Word document"); return; }
+    if (!/\.(pdf|doc|docx|jpe?g)$/i.test(f.name)) { toast.error("CV must be a PDF, Word document, or JPG"); return; }
     if (f.size > MAX_CV_MB * 1024 * 1024) { toast.error(`CV must be under ${MAX_CV_MB}MB`); return; }
     setCvFile(f);
   };
@@ -148,6 +150,11 @@ export default function Apply() {
                   <option value="">Select a position…</option>
                   {openings.map(o => <option key={o.id} value={o.id}>{o.title}{o.department ? ` — ${o.department}` : ""}</option>)}
                 </select>
+                {selectedOpening?.description && (
+                  <div className="mt-2 text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-3 whitespace-pre-wrap">
+                    {selectedOpening.description}
+                  </div>
+                )}
               </F>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <F label="Full Name *"><input required className="sk-input" value={data.name} onChange={e => setData({ ...data, name: e.target.value })} /></F>
@@ -168,10 +175,10 @@ export default function Apply() {
 
             <div className="sk-card p-5 space-y-4">
               <div className="font-heading font-bold">Documents</div>
-              <F label="Upload CV (PDF/DOC, max 5MB) *">
+              <F label={`Upload CV (PDF/DOC/JPG, max ${MAX_CV_MB}MB) *`}>
                 <label className="sk-btn-ghost cursor-pointer w-full">
                   <Upload className="w-4 h-4" /> {cvFile ? cvFile.name : "Choose file"}
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={onCv} />
+                  <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg" className="hidden" onChange={onCv} />
                 </label>
               </F>
               <F label="Photo (upload or take live) *">
