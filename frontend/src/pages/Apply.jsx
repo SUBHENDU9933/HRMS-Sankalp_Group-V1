@@ -205,18 +205,22 @@ export default function Apply() {
                 </FI>
                 <div className="text-xs text-slate-400 -mt-3">Choose the role that matches your skills and career goals at Sankalp Group.</div>
                 {selectedOpening && (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-2">
-                    {(selectedOpening.employment_type || selectedOpening.experience_required || selectedOpening.salary_range || selectedOpening.location) && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+                    {(selectedOpening.employment_type || selectedOpening.experience_required || selectedOpening.salary_range || selectedOpening.location || selectedOpening.work_type) && (
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                         {selectedOpening.employment_type && <div><span className="text-slate-400">Type:</span> <span className="font-medium">{selectedOpening.employment_type}</span></div>}
                         {selectedOpening.experience_required && <div><span className="text-slate-400">Experience:</span> <span className="font-medium">{selectedOpening.experience_required}</span></div>}
                         {selectedOpening.salary_range && <div><span className="text-slate-400">Salary:</span> <span className="font-medium">{selectedOpening.salary_range}</span></div>}
                         {selectedOpening.location && <div><span className="text-slate-400">Location:</span> <span className="font-medium">{selectedOpening.location}</span></div>}
+                        {selectedOpening.work_type && <div className="col-span-2"><span className="text-slate-400">Work Type:</span> <span className="font-medium">{selectedOpening.work_type}</span></div>}
                       </div>
                     )}
                     {selectedOpening.description && (
-                      <div className="text-sm text-slate-600 whitespace-pre-wrap pt-1 border-t border-slate-200">{selectedOpening.description}</div>
+                      <div className="text-sm text-slate-600 whitespace-pre-wrap pt-2 border-t border-slate-200">{selectedOpening.description}</div>
                     )}
+                    <JobDetailList title="Key Responsibilities" text={selectedOpening.responsibilities} />
+                    <JobDetailList title="Skills Required" text={selectedOpening.skills} />
+                    <JobDetailList title="Eligibility" text={selectedOpening.eligibility} />
                   </div>
                 )}
               </Section>
@@ -361,6 +365,24 @@ function Section({ n, icon: Icon, title, children }) {
         <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${ORANGE}50, transparent)` }} />
       </div>
       <div className="space-y-4 pl-0 md:pl-1">{children}</div>
+    </div>
+  );
+}
+function JobDetailList({ title, text }) {
+  if (!text) return null;
+  const items = text.split("\n").map(s => s.trim()).filter(Boolean);
+  if (items.length === 0) return null;
+  return (
+    <div className="pt-2 border-t border-slate-200">
+      <div className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: ROYAL }}>{title}</div>
+      <ul className="space-y-1">
+        {items.map((it, i) => (
+          <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+            <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: ORANGE }} />
+            {it}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
