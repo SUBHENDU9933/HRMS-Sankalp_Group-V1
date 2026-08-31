@@ -43,6 +43,9 @@ export async function submitApplication(p) {
     p_cover_note: p.cover_note || null,
     p_cv_url: p.cv_url,
     p_photo_url: p.photo_url || null,
+    p_latitude: p.latitude ?? null,
+    p_longitude: p.longitude ?? null,
+    p_location_accuracy: p.location_accuracy ?? null,
   });
   if (error) throw error;
   return data;
