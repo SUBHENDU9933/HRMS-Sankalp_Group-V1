@@ -10,7 +10,7 @@ const thr = (r) => { if (r.error) throw r.error; return r.data; };
 
 /* ---------------- public (no auth — used on /apply) ---------------- */
 export async function listOpenPositions() {
-  return thr(await supabase.from("job_openings").select("id,title,department,description").eq("status", "open").order("title"));
+  return thr(await supabase.from("job_openings").select("id,title,department,description,employment_type,experience_required,salary_range,location").eq("status", "open").order("title"));
 }
 export async function checkDuplicateApplication(job_opening_id, email, phone) {
   const { data, error } = await supabase.rpc("check_duplicate_application", {
@@ -19,6 +19,16 @@ export async function checkDuplicateApplication(job_opening_id, email, phone) {
   if (error) throw error;
   return data?.[0] || null;
 }
+export async function checkApplicationStatus(application_number, email, phone) {
+  const { data, error } = await supabase.rpc("check_application_status", {
+    p_application_number: application_number.trim(),
+    p_email: email.trim(),
+    p_phone: phone.trim(),
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
 export async function submitApplication(p) {
   const { data, error } = await supabase.rpc("submit_application", {
     p_job_opening_id: p.job_opening_id,
@@ -42,10 +52,12 @@ export async function submitApplication(p) {
 export async function listJobOpenings() {
   return thr(await supabase.from("job_openings").select("*").order("created_at", { ascending: false }));
 }
-export async function saveJobOpening({ id, title, department, description, status }) {
+export async function saveJobOpening({ id, title, department, description, status, employment_type, experience_required, salary_range, location }) {
   const { data, error } = await supabase.rpc("upsert_job_opening", {
     p_id: id || null, p_title: title, p_department: department || null,
     p_description: description || null, p_status: status || "open",
+    p_employment_type: employment_type || null, p_experience_required: experience_required || null,
+    p_salary_range: salary_range || null, p_location: location || null,
   });
   if (error) throw error;
   return data;
@@ -84,6 +96,15 @@ export async function changeStatus(args) {
     p_interviewer: args.interviewer || null,
     p_interview_feedback: args.interview_feedback || null,
     p_interview_rating: args.interview_rating || null,
+    p_joining_date: args.joining_date || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function reassignApplication(application_id, new_job_opening_id, note) {
+  const { data, error } = await supabase.rpc("reassign_application", {
+    p_application_id: application_id, p_new_job_opening_id: new_job_opening_id, p_note: note || null,
   });
   if (error) throw error;
   return data;
@@ -125,4 +146,26 @@ export async function sendStatusEmail(application_id, kind, force = false) {
     // Non-fatal — status already changed. Caller shows a toast warning.
     return { ok: false, error: e.message };
   }
+}
+
+/* ---------------- WhatsApp message generator (manual send — no API) ---------------- */
+const WA_STATUS_TEXT = {
+  shortlisted: (a) => `Hi ${a.name}, good news! You've been shortlisted for the ${a.job_title} position at Sankalp Group. We'll be in touch soon with next steps.\n\nRef: ${a.application_number}`,
+  interview_scheduled: (a) => `Hi ${a.name}, your interview for ${a.job_title} is scheduled on ${a.interview_date} at ${a.interview_time} (${a.interview_mode}).${a.interview_mode === "in_person" ? "\nLocation: " + (a.mapUrl || "") : ""}\n\nRef: ${a.application_number}`,
+  selected: (a) => `Congratulations ${a.name}! You've been selected for the ${a.job_title} position at Sankalp Group. Our HR team will reach out with joining details soon.\n\nRef: ${a.application_number}`,
+  joining: (a) => `Hi ${a.name}, your joining for ${a.job_title} at Sankalp Group is confirmed for ${a.joining_date}. Welcome aboard!\n\nRef: ${a.application_number}`,
+  rejected: (a) => `Hi ${a.name}, thank you for applying for ${a.job_title} at Sankalp Group. After careful consideration, we won't be moving forward this time. We wish you the best in your search.\n\nRef: ${a.application_number}`,
+  on_hold: (a) => `Hi ${a.name}, your application for ${a.job_title} at Sankalp Group is currently on hold. We'll update you as soon as there's news.\n\nRef: ${a.application_number}`,
+};
+
+export function generateWhatsAppMessage(app, kind, mapUrl) {
+  const builder = WA_STATUS_TEXT[kind];
+  if (!builder) return "";
+  return builder({ ...app, mapUrl });
+}
+
+export function whatsappLink(phone, message) {
+  const digits = (phone || "").replace(/\D/g, "");
+  const withCountry = digits.length === 10 ? `91${digits}` : digits; // assume Indian numbers
+  return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
 }
