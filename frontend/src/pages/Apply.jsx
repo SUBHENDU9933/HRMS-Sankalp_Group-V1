@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Upload, Camera, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, Camera, CheckCircle2, Loader2, ArrowLeft, Search } from "lucide-react";
 import { toast } from "sonner";
 import { LOGO } from "@/lib/utils-app";
 import {
@@ -131,14 +131,17 @@ export default function Apply() {
     <div className="min-h-screen bg-[#F7FAFC] py-8 px-4">
       {showCamera && <PhotoCapture onCapture={onCameraCapture} onClose={() => setShowCamera(false)} />}
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-slate-900 grid place-items-center overflow-hidden shrink-0">
-            <img src={LOGO} alt="Sankalp" className="w-full h-full object-contain" />
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-900 grid place-items-center overflow-hidden shrink-0">
+              <img src={LOGO} alt="Sankalp" className="w-full h-full object-contain" />
+            </div>
+            <div className="leading-tight">
+              <div className="font-heading font-extrabold text-slate-900">Sankalp Interior Solution</div>
+              <div className="text-xs text-slate-500 -mt-0.5">Job Application</div>
+            </div>
           </div>
-          <div className="leading-tight">
-            <div className="font-heading font-extrabold text-slate-900">Sankalp Interior Solution</div>
-            <div className="text-xs text-slate-500 -mt-0.5">Job Application</div>
-          </div>
+          <a href="/status" className="sk-btn-ghost whitespace-nowrap"><Search className="w-4 h-4" /> Check Status</a>
         </div>
 
         {openings.length === 0 ? (
