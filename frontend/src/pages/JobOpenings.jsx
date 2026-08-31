@@ -4,6 +4,8 @@ import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { listJobOpenings, saveJobOpening } from "@/lib/recruitment";
 
+const ROYAL = "#0D47A1";
+const ORANGE = "#FF6A00";
 const empty = { id: null, title: "", department: "", description: "", status: "open", employment_type: "", experience_required: "", salary_range: "", location: "" };
 
 export default function JobOpenings() {
@@ -31,8 +33,8 @@ export default function JobOpenings() {
     <div className="sk-page max-w-3xl">
       <Link to="/recruitment" className="text-sm text-slate-600 inline-flex items-center gap-1.5 mb-3"><ArrowLeft className="w-4 h-4" /> Back to Recruitment</Link>
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl md:text-3xl font-extrabold">Job Openings</h1>
-        <button className="sk-btn-primary" onClick={() => setForm(empty)}><Plus className="w-4 h-4" /> New Opening</button>
+        <h1 className="font-heading text-2xl md:text-3xl font-extrabold" style={{ color: ROYAL }}>Job Openings</h1>
+        <button className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => setForm(empty)}><Plus className="w-4 h-4" /> New Opening</button>
       </div>
 
       {form && (
@@ -52,7 +54,7 @@ export default function JobOpenings() {
           <F label="Description"><textarea rows={3} className="sk-input" value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} /></F>
           <div className="flex justify-end gap-2">
             <button type="button" className="sk-btn-ghost" onClick={() => setForm(null)}>Cancel</button>
-            <button disabled={busy} className="sk-btn-primary">{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save</button>
+            <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save</button>
           </div>
         </form>
       )}
@@ -65,7 +67,7 @@ export default function JobOpenings() {
               <div className="text-xs text-slate-500">{r.department || "—"}</div>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`sk-badge ${r.status === "open" ? "sk-badge-success" : "sk-badge-neutral"}`}>{r.status}</span>
+              <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-full text-white" style={{ background: r.status === "open" ? "#10B981" : "#94A3B8" }}>{r.status}</span>
               <button className="sk-btn-ghost" onClick={() => setForm({ id: r.id, title: r.title, department: r.department || "", description: r.description || "", status: r.status, employment_type: r.employment_type || "", experience_required: r.experience_required || "", salary_range: r.salary_range || "", location: r.location || "" })}>Edit</button>
             </div>
           </div>
