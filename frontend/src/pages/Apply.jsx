@@ -43,10 +43,25 @@ export default function Apply() {
   const [done, setDone] = useState(null); // application_number once submitted
   const [dupWarning, setDupWarning] = useState(null);
   const [confirmedDespiteDup, setConfirmedDespiteDup] = useState(false);
+  const [geo, setGeo] = useState({ lat: null, lng: null, accuracy: null, status: "idle" }); // optional — not required to submit
 
   useEffect(() => {
     listOpenPositions().then(setOpenings).catch(() => toast.error("Could not load open positions")).finally(() => setLoading(false));
   }, []);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) { setGeo(g => ({ ...g, status: "error" })); return; }
+    setGeo(g => ({ ...g, status: "requesting" }));
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, status: "ok" }),
+      () => setGeo(g => ({ ...g, status: "error" })),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+  // Auto-request as soon as the form is reachable — same pattern as the Agreements
+  // signing flow, but non-blocking here: a job application shouldn't be gated on
+  // location permission the way a legal signature is.
+  useEffect(() => { if (!loading) requestLocation(); }, [loading]);
 
   const selectedOpening = openings.find(o => o.id === data.job_opening_id) || null;
 
@@ -111,6 +126,7 @@ export default function Apply() {
         expected_salary: data.expected_salary ? Number(data.expected_salary) : null,
         cover_note: data.cover_note || null,
         cv_url, photo_url,
+        latitude: geo.lat, longitude: geo.lng, location_accuracy: geo.accuracy,
       };
       const created = await submitApplication(payload);
       setDone(created.application_number);
@@ -305,6 +321,12 @@ export default function Apply() {
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-slate-600">
                   <Shield className="w-4 h-4 shrink-0 mt-0.5" style={{ color: ROYAL }} />
                   Your information is secure with us and will only be used for recruitment purposes.
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: geo.status === "ok" ? "#10B981" : "#94A3B8" }} />
+                  {geo.status === "ok" ? "Location captured (optional, helps us verify your application)"
+                    : geo.status === "requesting" ? "Requesting location…"
+                    : <button type="button" onClick={requestLocation} className="underline">Location not shared — tap to allow (optional)</button>}
                 </div>
                 <button disabled={busy} className="w-full h-13 py-3.5 rounded-xl text-white font-bold flex items-center justify-center gap-2 transition disabled:opacity-70" style={{ background: `linear-gradient(90deg, ${ROYAL}, #1D5FC9)` }}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Submit Application <ArrowRight className="w-4 h-4" /></>}
