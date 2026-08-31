@@ -121,6 +121,7 @@ export default function Apply() {
           <p className="text-sm text-slate-600 mt-2">Your reference number is</p>
           <div className="text-lg font-mono font-bold text-[#4DA3FF] mt-1">{done}</div>
           <p className="text-xs text-slate-500 mt-4">We'll email you at each step of the process. Thank you for applying to Sankalp Interior Solution.</p>
+          <a href="/status" className="text-xs text-[#4DA3FF] font-medium mt-3 inline-block">Check your application status anytime →</a>
         </div>
       </div>
     );
@@ -151,9 +152,19 @@ export default function Apply() {
                   <option value="">Select a position…</option>
                   {openings.map(o => <option key={o.id} value={o.id}>{o.title}{o.department ? ` — ${o.department}` : ""}</option>)}
                 </select>
-                {selectedOpening?.description && (
-                  <div className="mt-2 text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-3 whitespace-pre-wrap">
-                    {selectedOpening.description}
+                {selectedOpening && (
+                  <div className="mt-2 bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-2">
+                    {(selectedOpening.employment_type || selectedOpening.experience_required || selectedOpening.salary_range || selectedOpening.location) && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        {selectedOpening.employment_type && <div><span className="text-slate-400">Type:</span> <span className="font-medium">{selectedOpening.employment_type}</span></div>}
+                        {selectedOpening.experience_required && <div><span className="text-slate-400">Experience:</span> <span className="font-medium">{selectedOpening.experience_required}</span></div>}
+                        {selectedOpening.salary_range && <div><span className="text-slate-400">Salary:</span> <span className="font-medium">{selectedOpening.salary_range}</span></div>}
+                        {selectedOpening.location && <div><span className="text-slate-400">Location:</span> <span className="font-medium">{selectedOpening.location}</span></div>}
+                      </div>
+                    )}
+                    {selectedOpening.description && (
+                      <div className="text-sm text-slate-600 whitespace-pre-wrap pt-1 border-t border-slate-200">{selectedOpening.description}</div>
+                    )}
                   </div>
                 )}
               </F>
