@@ -1,19 +1,23 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle, MessageCircle, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { listEmployees } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import {
   getApplication, getApplicationHistory, changeStatus, updateNotes, sendStatusEmail,
+  listJobOpenings, reassignApplication, generateWhatsAppMessage, whatsappLink,
 } from "@/lib/recruitment";
 
 const STATUS_LABEL = {
   new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled",
   interviewed: "Interviewed", selected: "Selected", rejected: "Rejected", on_hold: "On Hold",
+  joining: "Joining Confirmed",
 };
-// Which statuses email fires for — matches the approved plan (shortlist / interview / final decision)
+// Which statuses email/WhatsApp fire for
 const EMAIL_ON = new Set(["shortlisted", "interview_scheduled", "selected", "rejected"]);
+const WHATSAPP_ON = new Set(["shortlisted", "interview_scheduled", "selected", "rejected", "on_hold", "joining"]);
 
 export default function ApplicationDetail() {
   const { id } = useParams();
@@ -22,13 +26,17 @@ export default function ApplicationDetail() {
   const [app, setApp] = useState(null);
   const [history, setHistory] = useState([]);
   const [interviewers, setInterviewers] = useState([]);
+  const [openings, setOpenings] = useState([]);
+  const [mapUrl, setMapUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState("");
-  const [panel, setPanel] = useState(null); // 'interview' | 'outcome' | 'reject' | 'hold' | null
+  const [panel, setPanel] = useState(null); // 'interview' | 'outcome' | 'reject' | 'hold' | 'joining' | 'reassign' | null
   const [iv, setIv] = useState({ interview_date: "", interview_time: "", interview_mode: "in_person", interviewer: "" });
   const [outcome, setOutcome] = useState({ interview_feedback: "", interview_rating: "" });
   const [reasonNote, setReasonNote] = useState("");
+  const [joiningDate, setJoiningDate] = useState("");
+  const [reassignTo, setReassignTo] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -40,6 +48,11 @@ export default function ApplicationDetail() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { listEmployees({ status: "active" }).then(setInterviewers).catch(() => {}); }, []);
+  useEffect(() => { listJobOpenings().then(setOpenings).catch(() => {}); }, []);
+  useEffect(() => {
+    supabase.from("company_settings").select("map_url").eq("id", "default").maybeSingle()
+      .then(({ data }) => setMapUrl(data?.map_url || ""));
+  }, []);
 
   const doChange = async (new_status, extra = {}) => {
     setBusy(true);
@@ -55,6 +68,18 @@ export default function ApplicationDetail() {
     } catch (err) {
       toast.error(err.message || "Failed to update status");
     } finally { setBusy(false); }
+  };
+
+  const doReassign = async () => {
+    if (!reassignTo) return;
+    setBusy(true);
+    try {
+      await reassignApplication(id, reassignTo, reasonNote || null);
+      toast.success("Application reassigned");
+      setPanel(null); setReasonNote(""); setReassignTo("");
+      load();
+    } catch (err) { toast.error(err.message || "Reassign failed"); }
+    finally { setBusy(false); }
   };
 
   const saveNotes = async () => {
@@ -77,14 +102,23 @@ export default function ApplicationDetail() {
     });
   };
 
+  const openWhatsApp = () => {
+    const msg = generateWhatsAppMessage(app, app.status, mapUrl);
+    if (!msg) return;
+    window.open(whatsappLink(app.phone, msg), "_blank");
+  };
+
   if (loading || !app) return <div className="sk-page text-slate-500">Loading…</div>;
 
   const canShortlist = app.status === "new";
   const canSchedule = ["shortlisted"].includes(app.status);
+  const canReschedule = app.status === "interview_scheduled";
   const canMarkInterviewed = app.status === "interview_scheduled";
   const canDecide = app.status === "interviewed";
-  const canRejectOrHold = !["selected", "rejected"].includes(app.status);
-  const canConvert = app.status === "selected" && !app.converted_employee_id;
+  const canMarkJoining = app.status === "selected";
+  const canRejectOrHold = !["selected", "rejected", "joining"].includes(app.status);
+  const canReassign = app.status === "on_hold";
+  const canConvert = app.status === "joining" && !app.converted_employee_id;
 
   return (
     <div className="sk-page max-w-3xl">
@@ -95,7 +129,7 @@ export default function ApplicationDetail() {
           <h1 className="font-heading text-2xl md:text-3xl font-extrabold">{app.name}</h1>
           <div className="text-sm text-slate-500 font-mono">{app.application_number} • {app.job_title}</div>
         </div>
-        <span className="sk-badge sk-badge-info">{STATUS_LABEL[app.status] || app.status}</span>
+        <span className="sk-badge sk-badge-info">Current Status: {STATUS_LABEL[app.status] || app.status}</span>
       </div>
 
       {app.converted_employee_id && (
@@ -133,16 +167,26 @@ export default function ApplicationDetail() {
         </div>
       )}
 
+      {app.joining_date && (
+        <div className="sk-card p-5 mt-4 text-sm">
+          <div className="font-heading font-bold mb-1">Joining</div>
+          <div><span className="text-slate-400">Joining Date:</span> {app.joining_date}</div>
+        </div>
+      )}
+
       {/* ---- Actions ---- */}
       <div className="sk-card p-5 mt-4 space-y-3">
         <div className="font-heading font-bold">Actions</div>
         <div className="flex flex-wrap gap-2">
           {canShortlist && <button disabled={busy} className="sk-btn-primary" onClick={() => doChange("shortlisted")}>Shortlist</button>}
           {canSchedule && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("interview")}>Schedule Interview</button>}
+          {canReschedule && <button disabled={busy} className="sk-btn-ghost" onClick={() => { setIv({ interview_date: app.interview_date || "", interview_time: app.interview_time || "", interview_mode: app.interview_mode || "in_person", interviewer: app.interviewer || "" }); setPanel("interview"); }}><Repeat className="w-4 h-4" /> Reschedule</button>}
           {canMarkInterviewed && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("outcome")}>Mark Interviewed</button>}
           {canDecide && <button disabled={busy} className="sk-btn-accent" onClick={() => doChange("selected")}>Select</button>}
+          {canMarkJoining && <button disabled={busy} className="sk-btn-accent" onClick={() => setPanel("joining")}>Confirm Joining</button>}
           {canRejectOrHold && <button disabled={busy} className="sk-btn-ghost" onClick={() => setPanel("reject")}>Reject</button>}
           {canRejectOrHold && <button disabled={busy} className="sk-btn-ghost" onClick={() => setPanel("hold")}>On Hold</button>}
+          {canReassign && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("reassign")}><Repeat className="w-4 h-4" /> Reassign to Another Role</button>}
           {canConvert && <button disabled={busy} className="sk-btn-accent" onClick={goConvert}><UserPlus className="w-4 h-4" /> Convert to Employee</button>}
           {EMAIL_ON.has(app.status) && (
             <button disabled={busy} className="sk-btn-ghost" onClick={async () => {
@@ -150,6 +194,9 @@ export default function ApplicationDetail() {
               toast[r?.ok === false ? "error" : "success"](r?.ok === false ? "Resend failed" : "Email resent");
               load();
             }}><Mail className="w-4 h-4" /> Resend Email</button>
+          )}
+          {WHATSAPP_ON.has(app.status) && (
+            <button disabled={busy} className="sk-btn-ghost" onClick={openWhatsApp}><MessageCircle className="w-4 h-4" /> WhatsApp Message</button>
           )}
         </div>
         {app.last_email_error && (
@@ -167,7 +214,7 @@ export default function ApplicationDetail() {
             <div className="md:col-span-2 flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => setPanel(null)}>Cancel</button>
               <button disabled={busy || !iv.interview_date || !iv.interview_time || !iv.interviewer} className="sk-btn-primary"
-                onClick={() => doChange("interview_scheduled", iv)}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Schedule</button>
+                onClick={() => doChange("interview_scheduled", iv)}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm {canReschedule ? "Reschedule" : "Schedule"}</button>
             </div>
           </div>
         )}
@@ -182,6 +229,33 @@ export default function ApplicationDetail() {
                 interview_feedback: outcome.interview_feedback || null,
                 interview_rating: outcome.interview_rating ? Number(outcome.interview_rating) : null,
               })}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save Outcome</button>
+            </div>
+          </div>
+        )}
+
+        {panel === "joining" && (
+          <div className="border-t border-slate-100 pt-4 mt-2 space-y-3">
+            <F label="Joining Date *"><input type="date" required className="sk-input" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} /></F>
+            <div className="flex justify-end gap-2">
+              <button className="sk-btn-ghost" onClick={() => { setPanel(null); setJoiningDate(""); }}>Cancel</button>
+              <button disabled={busy || !joiningDate} className="sk-btn-primary" onClick={() => doChange("joining", { joining_date: joiningDate })}>
+                {busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Joining
+              </button>
+            </div>
+          </div>
+        )}
+
+        {panel === "reassign" && (
+          <div className="border-t border-slate-100 pt-4 mt-2 space-y-3">
+            <F label="Reassign To Position *"><select className="sk-input" value={reassignTo} onChange={e => setReassignTo(e.target.value)}>
+              <option value="">Select a position…</option>
+              {openings.filter(o => o.id !== app.job_opening_id).map(o => <option key={o.id} value={o.id}>{o.title}</option>)}
+            </select></F>
+            <F label="Note (optional)"><textarea rows={2} className="sk-input" value={reasonNote} onChange={e => setReasonNote(e.target.value)} /></F>
+            <div className="text-xs text-slate-500">This resets the application to "New" on the selected position — the candidate's original details, CV, and full history stay attached to this same application.</div>
+            <div className="flex justify-end gap-2">
+              <button className="sk-btn-ghost" onClick={() => { setPanel(null); setReasonNote(""); setReassignTo(""); }}>Cancel</button>
+              <button disabled={busy || !reassignTo} className="sk-btn-primary" onClick={doReassign}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Reassign</button>
             </div>
           </div>
         )}
