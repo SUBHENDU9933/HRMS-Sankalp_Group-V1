@@ -6,7 +6,11 @@ import { listJobOpenings, saveJobOpening } from "@/lib/recruitment";
 
 const ROYAL = "#0D47A1";
 const ORANGE = "#FF6A00";
-const empty = { id: null, title: "", department: "", description: "", status: "open", employment_type: "", experience_required: "", salary_range: "", location: "" };
+const empty = {
+  id: null, title: "", department: "", status: "open",
+  employment_type: "", experience_required: "", salary_range: "", location: "", work_type: "",
+  description: "", responsibilities: "", skills: "", eligibility: "",
+};
 
 export default function JobOpenings() {
   const [rows, setRows] = useState([]);
@@ -29,6 +33,14 @@ export default function JobOpenings() {
     finally { setBusy(false); }
   };
 
+  const editRow = (r) => setForm({
+    id: r.id, title: r.title, department: r.department || "", status: r.status,
+    employment_type: r.employment_type || "", experience_required: r.experience_required || "",
+    salary_range: r.salary_range || "", location: r.location || "", work_type: r.work_type || "",
+    description: r.description || "", responsibilities: r.responsibilities || "",
+    skills: r.skills || "", eligibility: r.eligibility || "",
+  });
+
   return (
     <div className="sk-page max-w-3xl">
       <Link to="/recruitment" className="text-sm text-slate-600 inline-flex items-center gap-1.5 mb-3"><ArrowLeft className="w-4 h-4" /> Back to Recruitment</Link>
@@ -38,20 +50,32 @@ export default function JobOpenings() {
       </div>
 
       {form && (
-        <form onSubmit={save} className="sk-card p-5 space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <F label="Title *"><input required className="sk-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></F>
-            <F label="Department"><input className="sk-input" value={form.department || ""} onChange={e => setForm({ ...form, department: e.target.value })} /></F>
-            <F label="Employment Type"><select className="sk-input" value={form.employment_type || ""} onChange={e => setForm({ ...form, employment_type: e.target.value })}>
-              <option value="">Select…</option><option value="Full-time">Full-time</option><option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option><option value="Internship">Internship</option></select></F>
-            <F label="Experience Required"><input className="sk-input" placeholder="e.g. 2-4 years" value={form.experience_required || ""} onChange={e => setForm({ ...form, experience_required: e.target.value })} /></F>
-            <F label="Salary Range"><input className="sk-input" placeholder="e.g. ₹18,000 - ₹25,000/month" value={form.salary_range || ""} onChange={e => setForm({ ...form, salary_range: e.target.value })} /></F>
-            <F label="Location"><input className="sk-input" placeholder="e.g. Kolkata, WB" value={form.location || ""} onChange={e => setForm({ ...form, location: e.target.value })} /></F>
-            <F label="Status"><select className="sk-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-              <option value="open">Open</option><option value="closed">Closed</option></select></F>
+        <form onSubmit={save} className="sk-card p-5 space-y-5 mt-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Basic Details</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <F label="Title *"><input required className="sk-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></F>
+              <F label="Department"><input className="sk-input" value={form.department || ""} onChange={e => setForm({ ...form, department: e.target.value })} /></F>
+              <F label="Employment Type"><input className="sk-input" placeholder="e.g. Full Time, Freelancer / Flexible" value={form.employment_type || ""} onChange={e => setForm({ ...form, employment_type: e.target.value })} /></F>
+              <F label="Experience Required"><input className="sk-input" placeholder="e.g. Freshers & Experienced, 1-5 Years" value={form.experience_required || ""} onChange={e => setForm({ ...form, experience_required: e.target.value })} /></F>
+              <F label="Salary Range"><input className="sk-input" placeholder="e.g. ₹9,000 - ₹26,000 / Month" value={form.salary_range || ""} onChange={e => setForm({ ...form, salary_range: e.target.value })} /></F>
+              <F label="Job Location"><input className="sk-input" placeholder="e.g. Chinar Park (Jyangra), Kolkata - 700059" value={form.location || ""} onChange={e => setForm({ ...form, location: e.target.value })} /></F>
+              <F label="Work Type (optional)"><input className="sk-input" placeholder="e.g. Office + Field" value={form.work_type || ""} onChange={e => setForm({ ...form, work_type: e.target.value })} /></F>
+              <F label="Status *"><select className="sk-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                <option value="open">Open for Joining</option><option value="closed">Closed</option></select></F>
+            </div>
           </div>
-          <F label="Description"><textarea rows={3} className="sk-input" value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} /></F>
+
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Job Details</div>
+            <div className="space-y-4">
+              <F label="Job Description"><textarea rows={3} className="sk-input" value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} /></F>
+              <F label="Key Responsibilities (one per line)"><textarea rows={5} className="sk-input" placeholder={"New client acquisition\nClient visits and meetings\n..."} value={form.responsibilities || ""} onChange={e => setForm({ ...form, responsibilities: e.target.value })} /></F>
+              <F label="Skills Required (one per line, optional)"><textarea rows={4} className="sk-input" placeholder={"Strong SketchUp knowledge\nAutoCAD preferred\n..."} value={form.skills || ""} onChange={e => setForm({ ...form, skills: e.target.value })} /></F>
+              <F label="Eligibility (one per line)"><textarea rows={4} className="sk-input" placeholder={"10th / 12th / Graduate\nGood communication skills\n..."} value={form.eligibility || ""} onChange={e => setForm({ ...form, eligibility: e.target.value })} /></F>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2">
             <button type="button" className="sk-btn-ghost" onClick={() => setForm(null)}>Cancel</button>
             <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save</button>
@@ -67,8 +91,8 @@ export default function JobOpenings() {
               <div className="text-xs text-slate-500">{r.department || "—"}</div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-full text-white" style={{ background: r.status === "open" ? "#10B981" : "#94A3B8" }}>{r.status}</span>
-              <button className="sk-btn-ghost" onClick={() => setForm({ id: r.id, title: r.title, department: r.department || "", description: r.description || "", status: r.status, employment_type: r.employment_type || "", experience_required: r.experience_required || "", salary_range: r.salary_range || "", location: r.location || "" })}>Edit</button>
+              <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-full text-white" style={{ background: r.status === "open" ? "#10B981" : "#94A3B8" }}>{r.status === "open" ? "Open for Joining" : "Closed"}</span>
+              <button className="sk-btn-ghost" onClick={() => editRow(r)}>Edit</button>
             </div>
           </div>
         ))}
