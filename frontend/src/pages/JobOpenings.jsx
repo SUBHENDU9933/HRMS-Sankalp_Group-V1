@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { listJobOpenings, saveJobOpening } from "@/lib/recruitment";
 
-const empty = { id: null, title: "", department: "", description: "", status: "open" };
+const empty = { id: null, title: "", department: "", description: "", status: "open", employment_type: "", experience_required: "", salary_range: "", location: "" };
 
 export default function JobOpenings() {
   const [rows, setRows] = useState([]);
@@ -40,6 +40,12 @@ export default function JobOpenings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <F label="Title *"><input required className="sk-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></F>
             <F label="Department"><input className="sk-input" value={form.department || ""} onChange={e => setForm({ ...form, department: e.target.value })} /></F>
+            <F label="Employment Type"><select className="sk-input" value={form.employment_type || ""} onChange={e => setForm({ ...form, employment_type: e.target.value })}>
+              <option value="">Select…</option><option value="Full-time">Full-time</option><option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option><option value="Internship">Internship</option></select></F>
+            <F label="Experience Required"><input className="sk-input" placeholder="e.g. 2-4 years" value={form.experience_required || ""} onChange={e => setForm({ ...form, experience_required: e.target.value })} /></F>
+            <F label="Salary Range"><input className="sk-input" placeholder="e.g. ₹18,000 - ₹25,000/month" value={form.salary_range || ""} onChange={e => setForm({ ...form, salary_range: e.target.value })} /></F>
+            <F label="Location"><input className="sk-input" placeholder="e.g. Kolkata, WB" value={form.location || ""} onChange={e => setForm({ ...form, location: e.target.value })} /></F>
             <F label="Status"><select className="sk-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
               <option value="open">Open</option><option value="closed">Closed</option></select></F>
           </div>
@@ -60,7 +66,7 @@ export default function JobOpenings() {
             </div>
             <div className="flex items-center gap-3">
               <span className={`sk-badge ${r.status === "open" ? "sk-badge-success" : "sk-badge-neutral"}`}>{r.status}</span>
-              <button className="sk-btn-ghost" onClick={() => setForm({ id: r.id, title: r.title, department: r.department || "", description: r.description || "", status: r.status })}>Edit</button>
+              <button className="sk-btn-ghost" onClick={() => setForm({ id: r.id, title: r.title, department: r.department || "", description: r.description || "", status: r.status, employment_type: r.employment_type || "", experience_required: r.experience_required || "", salary_range: r.salary_range || "", location: r.location || "" })}>Edit</button>
             </div>
           </div>
         ))}
