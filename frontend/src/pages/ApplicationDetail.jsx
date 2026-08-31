@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle, MessageCircle, Repeat } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle, MessageCircle, Repeat, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { listEmployees } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import LocationMapTile from "@/components/LocationMapTile";
 import {
   getApplication, getApplicationHistory, changeStatus, updateNotes, sendStatusEmail,
   listJobOpenings, reassignApplication, generateWhatsAppMessage, whatsappLink,
@@ -161,6 +162,20 @@ export default function ApplicationDetail() {
         {app.cover_note && <div className="text-sm"><span className="text-slate-400">Cover Note:</span> {app.cover_note}</div>}
         <a href={app.cv_url} target="_blank" rel="noreferrer" className="sk-btn-ghost inline-flex w-auto"><FileText className="w-4 h-4" /> View CV</a>
       </div>
+
+      {app.latitude != null && app.longitude != null && (
+        <div className="sk-card p-5 mt-4">
+          <div className="font-heading font-bold mb-3 flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Location at Submission</div>
+          <div className="flex items-start gap-4 flex-wrap">
+            <LocationMapTile lat={app.latitude} lng={app.longitude} zoom={16} size={200} />
+            <div className="text-sm space-y-1">
+              <div><span className="text-slate-400">Coordinates:</span> {app.latitude.toFixed(6)}, {app.longitude.toFixed(6)}</div>
+              {app.location_accuracy != null && <div><span className="text-slate-400">Accuracy:</span> ±{Math.round(app.location_accuracy)}m</div>}
+              <a href={`https://www.google.com/maps?q=${app.latitude},${app.longitude}`} target="_blank" rel="noreferrer" className="text-xs font-semibold underline" style={{ color: "#0D47A1" }}>Open in Google Maps</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(app.interview_date || app.interviewer_name) && (
         <div className="sk-card p-5 mt-4 space-y-1 text-sm">
