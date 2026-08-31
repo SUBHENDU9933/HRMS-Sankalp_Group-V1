@@ -15,6 +15,7 @@ import Ledger from "@/pages/Ledger";
 import Profile from "@/pages/Profile";
 import CompanySettings from "@/pages/CompanySettings";
 import Apply from "@/pages/Apply";
+import PublicStatus from "@/pages/PublicStatus";
 import Recruitment from "@/pages/Recruitment";
 import ApplicationDetail from "@/pages/ApplicationDetail";
 import JobOpenings from "@/pages/JobOpenings";
@@ -36,6 +37,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/apply" element={<Apply />} />
+          <Route path="/status" element={<PublicStatus />} />
           <Route element={<Protected><Layout /></Protected>}>
             <Route index element={<Dashboard />} />
             <Route path="visits" element={<FieldVisits />} />
