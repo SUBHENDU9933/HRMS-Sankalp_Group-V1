@@ -218,9 +218,11 @@ export default function Apply() {
                     {selectedOpening.description && (
                       <div className="text-sm text-slate-600 whitespace-pre-wrap pt-2 border-t border-slate-200">{selectedOpening.description}</div>
                     )}
-                    <JobDetailList title="Key Responsibilities" text={selectedOpening.responsibilities} />
                     <JobDetailList title="Skills Required" text={selectedOpening.skills} />
-                    <JobDetailList title="Eligibility" text={selectedOpening.eligibility} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                      <JobDetailList title="Key Responsibilities" text={selectedOpening.responsibilities} />
+                      <JobDetailList title="Eligibility" text={selectedOpening.eligibility} />
+                    </div>
                   </div>
                 )}
               </Section>
