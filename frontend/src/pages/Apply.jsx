@@ -27,9 +27,16 @@ const SOCIALS = [
 const empty = {
   job_opening_id: "", name: "", email: "", phone: "",
   experience_years: "", current_company: "", education: "",
-  current_address: "", expected_salary: "", cover_note: "",
+  address_line: "", city_town_area: "", pin_code: "", state: "",
+  expected_salary: "", cover_note: "", declaration: false,
   website: "", // honeypot — real humans never fill this
 };
+const EXPERIENCE_OPTIONS = [
+  { value: "0", label: "0 - Freshers" },
+  ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
+  { value: "11", label: "More than 10" },
+];
+const EDUCATION_OPTIONS = ["10th", "10+2 / HS", "Diploma", "Graduate", "Masters", "Others"];
 
 export default function Apply() {
   const [openings, setOpenings] = useState([]);
@@ -43,7 +50,7 @@ export default function Apply() {
   const [done, setDone] = useState(null); // application_number once submitted
   const [dupWarning, setDupWarning] = useState(null);
   const [confirmedDespiteDup, setConfirmedDespiteDup] = useState(false);
-  const [geo, setGeo] = useState({ lat: null, lng: null, accuracy: null, status: "idle" }); // optional — not required to submit
+  const [geo, setGeo] = useState({ lat: null, lng: null, accuracy: null, status: "idle" }); // mandatory — must be captured before submission
 
   useEffect(() => {
     listOpenPositions().then(setOpenings).catch(() => toast.error("Could not load open positions")).finally(() => setLoading(false));
@@ -59,8 +66,7 @@ export default function Apply() {
     );
   };
   // Auto-request as soon as the form is reachable — same pattern as the Agreements
-  // signing flow, but non-blocking here: a job application shouldn't be gated on
-  // location permission the way a legal signature is.
+  // signing flow. Here it IS required (blocks submission if not granted).
   useEffect(() => { if (!loading) requestLocation(); }, [loading]);
 
   const selectedOpening = openings.find(o => o.id === data.job_opening_id) || null;
@@ -101,6 +107,17 @@ export default function Apply() {
     if (data.website) return; // honeypot tripped — silently drop
     if (!cvFile) { toast.error("Please attach your CV"); return; }
     if (!photoDataUrl) { toast.error("Please add a photo (upload or capture)"); return; }
+    if (!data.experience_years) { toast.error("Please select your total experience"); return; }
+    if (!data.education) { toast.error("Please select your education qualification"); return; }
+    if (!data.address_line.trim() || !data.city_town_area.trim() || !data.pin_code.trim() || !data.state.trim()) {
+      toast.error("Please complete your full current address"); return;
+    }
+    if (geo.status !== "ok") {
+      toast.error("Location access is required to submit — please allow location and try again.");
+      if (geo.status !== "requesting") requestLocation();
+      return;
+    }
+    if (!data.declaration) { toast.error("Please confirm the declaration before submitting"); return; }
 
     if (!confirmedDespiteDup) {
       const dup = await checkDup();
@@ -122,14 +139,18 @@ export default function Apply() {
         experience_years: data.experience_years ? Number(data.experience_years) : null,
         current_company: data.current_company || null,
         education: data.education || null,
-        current_address: data.current_address || null,
+        current_address: `${data.address_line.trim()}, ${data.city_town_area.trim()}, ${data.state.trim()} - ${data.pin_code.trim()}`,
         expected_salary: data.expected_salary ? Number(data.expected_salary) : null,
         cover_note: data.cover_note || null,
         cv_url, photo_url,
         latitude: geo.lat, longitude: geo.lng, location_accuracy: geo.accuracy,
       };
       const created = await submitApplication(payload);
-      setDone(created.application_number);
+      setDone({
+        application_number: created.application_number,
+        name: payload.name,
+        position: selectedOpening?.title || "",
+      });
       sendStatusEmail(created.id, "submitted"); // fire-and-forget — never blocks the confirmation screen
     } catch (err) {
       toast.error(err.message || "Submission failed. Please try again.");
@@ -148,8 +169,11 @@ export default function Apply() {
             <CheckCircle2 className="w-9 h-9 text-emerald-500" />
           </div>
           <h1 className="text-xl font-extrabold" style={{ color: ROYAL }}>Application received!</h1>
-          <p className="text-sm text-slate-600 mt-2">Your reference number is</p>
-          <div className="text-lg font-mono font-bold mt-1" style={{ color: ROYAL }}>{done}</div>
+          <div className="text-left bg-slate-50 border border-slate-100 rounded-xl p-4 mt-4 space-y-1.5 text-sm">
+            <div><span className="text-slate-400">Name:</span> <span className="font-semibold text-slate-800">{done.name}</span></div>
+            <div><span className="text-slate-400">Applied For:</span> <span className="font-semibold text-slate-800">{done.position}</span></div>
+            <div><span className="text-slate-400">Application No:</span> <span className="font-mono font-bold" style={{ color: ROYAL }}>{done.application_number}</span></div>
+          </div>
           <p className="text-xs text-slate-500 mt-4">We'll email you at each step of the process. Thank you for applying to Sankalp Group.</p>
           <a href="/status" className="text-xs font-semibold mt-3 inline-block" style={{ color: ORANGE }}>Check your application status anytime →</a>
         </div>
@@ -248,7 +272,12 @@ export default function Apply() {
                   <FI label="Full Name *"><IconInput icon={User} required placeholder="Enter your full name" value={data.name} onChange={e => setData({ ...data, name: e.target.value })} /></FI>
                   <FI label="Phone *"><IconInput icon={Phone} required placeholder="Enter your phone number" value={data.phone} onChange={e => { setData({ ...data, phone: e.target.value }); setConfirmedDespiteDup(false); }} /></FI>
                   <FI label="Email *"><IconInput icon={Mail} type="email" required placeholder="Enter your email address" value={data.email} onChange={e => { setData({ ...data, email: e.target.value }); setConfirmedDespiteDup(false); }} /></FI>
-                  <FI label="Total Experience (Years)"><IconInput icon={Star} type="number" min="0" step="0.5" placeholder="e.g. 2" value={data.experience_years} onChange={e => setData({ ...data, experience_years: e.target.value })} /></FI>
+                  <FI label="Total Experience (Years) *">
+                    <select required className={inputCls.replace("pl-10", "pl-3")} value={data.experience_years} onChange={e => setData({ ...data, experience_years: e.target.value })}>
+                      <option value="">Select experience…</option>
+                      {EXPERIENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </FI>
                 </div>
               </Section>
 
@@ -256,14 +285,25 @@ export default function Apply() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FI label="Current / Last Company"><IconInput icon={Building2} placeholder="Enter your company name" value={data.current_company} onChange={e => setData({ ...data, current_company: e.target.value })} /></FI>
                   <FI label="Expected Salary (₹)"><IconInput icon={IndianRupee} type="number" min="0" placeholder="e.g. 6,00,000" value={data.expected_salary} onChange={e => setData({ ...data, expected_salary: e.target.value })} /></FI>
-                  <FI label="Education Qualification"><IconInput icon={GraduationCap} placeholder="Enter your qualification" value={data.education} onChange={e => setData({ ...data, education: e.target.value })} /></FI>
+                  <FI label="Education Qualification *">
+                    <select required className={inputCls.replace("pl-10", "pl-3")} value={data.education} onChange={e => setData({ ...data, education: e.target.value })}>
+                      <option value="">Select qualification…</option>
+                      {EDUCATION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </FI>
                 </div>
-                <FI label="Current Address">
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
-                    <textarea rows={2} className={`${inputCls} h-auto pl-10 pt-3`} placeholder="Enter your current address" value={data.current_address} onChange={e => setData({ ...data, current_address: e.target.value })} />
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase mb-1.5 block">Current Address *</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 relative">
+                      <MapPin className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+                      <textarea required rows={2} className={`${inputCls} h-auto pl-10 pt-3`} placeholder="House / Flat No., Street, Landmark" value={data.address_line} onChange={e => setData({ ...data, address_line: e.target.value })} />
+                    </div>
+                    <IconInput icon={Building2} required placeholder="City / Town / Area" value={data.city_town_area} onChange={e => setData({ ...data, city_town_area: e.target.value })} />
+                    <IconInput icon={MapPin} required placeholder="PIN Code" value={data.pin_code} onChange={e => setData({ ...data, pin_code: e.target.value })} />
+                    <IconInput icon={MapPin} required placeholder="State" value={data.state} onChange={e => setData({ ...data, state: e.target.value })} />
                   </div>
-                </FI>
+                </div>
                 <FI label="Cover Note (Optional)">
                   <div className="relative">
                     <MessageSquare className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
@@ -322,12 +362,16 @@ export default function Apply() {
                   <Shield className="w-4 h-4 shrink-0 mt-0.5" style={{ color: ROYAL }} />
                   Your information is secure with us and will only be used for recruitment purposes.
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: geo.status === "ok" ? "#10B981" : "#94A3B8" }} />
-                  {geo.status === "ok" ? "Location captured (optional, helps us verify your application)"
+                <div className="flex items-center gap-2 text-xs" style={{ color: geo.status === "ok" ? "#059669" : "#DC2626" }}>
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  {geo.status === "ok" ? "Location captured ✓ (required)"
                     : geo.status === "requesting" ? "Requesting location…"
-                    : <button type="button" onClick={requestLocation} className="underline">Location not shared — tap to allow (optional)</button>}
+                    : <button type="button" onClick={requestLocation} className="underline font-semibold">Location sharing is required — tap to allow</button>}
                 </div>
+                <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+                  <input type="checkbox" required checked={data.declaration} onChange={e => setData({ ...data, declaration: e.target.checked })} className="mt-0.5 shrink-0" />
+                  I hereby declare that all the information provided above is true and correct to the best of my knowledge.
+                </label>
                 <button disabled={busy} className="w-full h-13 py-3.5 rounded-xl text-white font-bold flex items-center justify-center gap-2 transition disabled:opacity-70" style={{ background: `linear-gradient(90deg, ${ROYAL}, #1D5FC9)` }}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Submit Application <ArrowRight className="w-4 h-4" /></>}
                 </button>
