@@ -68,7 +68,8 @@ export default function PublicStatus() {
         </div>
       </section>
 
-      <div className="max-w-md mx-auto px-5 -mt-8 flex-1 w-full">
+      <div className="flex-1 w-full flex items-center justify-center px-5 py-10 -mt-8">
+      <div className="max-w-md w-full">
         <form onSubmit={submit} className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
           <FI label="Application Number *">
             <div className="relative">
@@ -137,6 +138,7 @@ export default function PublicStatus() {
             <div className="text-xs text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-100"><CheckCircle2 className="w-3.5 h-3.5" /> Applied on {new Date(result.applied_at).toLocaleDateString()}</div>
           </div>
         )}
+      </div>
       </div>
 
       <footer style={{ background: ROYAL }} className="text-white mt-10">
