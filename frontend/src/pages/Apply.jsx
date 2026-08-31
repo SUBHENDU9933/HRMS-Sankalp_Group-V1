@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Upload, Camera, CheckCircle2, Loader2, Search, Briefcase, User, Phone, Mail,
   Star, Building2, IndianRupee, GraduationCap, MapPin, MessageSquare, FileText,
-  Shield, ArrowRight, TrendingUp, Users, Target, Facebook, Instagram, Linkedin, Youtube,
+  Shield, ArrowRight, TrendingUp, Users, Target, Facebook, Instagram, AtSign, Youtube,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LOGO } from "@/lib/utils-app";
@@ -16,6 +16,13 @@ const MAX_CV_MB = 3;
 const MAX_PHOTO_MB = 3;
 const ROYAL = "#0D47A1";
 const ORANGE = "#FF6A00";
+const GOOGLE_BUSINESS_URL = "https://share.google/STNTYyQmAtCLrH4fB";
+const SOCIALS = [
+  { Icon: Facebook, href: "https://www.facebook.com/sankalpinterior" },
+  { Icon: Instagram, href: "https://www.instagram.com/sankalp_interior_solution/" },
+  { Icon: AtSign, href: "https://www.threads.com/@sankalp_interior_solution" },
+  { Icon: Youtube, href: "https://www.youtube.com/@SankalpInterior" },
+];
 
 const empty = {
   job_opening_id: "", name: "", email: "", phone: "",
@@ -163,7 +170,7 @@ export default function Apply() {
         }} />
         <div className="relative max-w-[1160px] mx-auto px-5 py-14 md:py-20">
           <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight max-w-2xl">
-            Build Your Career With<br /><span style={{ color: ORANGE }}>Sankalp Group</span>
+            Build Your Career With <span style={{ color: ORANGE }}>Sankalp Group</span>
           </h1>
           <p className="text-slate-200 mt-4 max-w-xl text-sm md:text-base">
             Explore opportunities, share your profile, and take the next step in your career with us.
@@ -312,14 +319,14 @@ export default function Apply() {
             </div>
             <div className="text-blue-100 text-xs mt-2 max-w-xs">Building inspiring spaces. Delivering trusted solutions.</div>
             <div className="flex gap-2 mt-3">
-              {[Facebook, Instagram, Linkedin, Youtube].map((Icon, i) => (
-                <div key={i} className="w-7 h-7 rounded-full bg-white grid place-items-center"><Icon className="w-3.5 h-3.5" style={{ color: ROYAL }} /></div>
+              {SOCIALS.map(({ Icon, href }, i) => (
+                <a key={i} href={href} target="_blank" rel="noreferrer" className="w-7 h-7 rounded-full bg-white grid place-items-center hover:opacity-80 transition"><Icon className="w-3.5 h-3.5" style={{ color: ROYAL }} /></a>
               ))}
             </div>
           </div>
           <div className="text-xs text-blue-50 space-y-1">
             <div className="font-bold text-[11px] tracking-wider mb-1" style={{ color: ORANGE }}>CONTACT US</div>
-            <div>Kolkata, West Bengal, India</div>
+            <a href={GOOGLE_BUSINESS_URL} target="_blank" rel="noreferrer" className="block hover:underline">Kolkata, West Bengal, India</a>
             <div>+91 97482 97025</div>
             <div>care.sankalpgrp@gmail.com</div>
           </div>
