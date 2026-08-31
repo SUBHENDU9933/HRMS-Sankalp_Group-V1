@@ -10,10 +10,16 @@ import {
   listJobOpenings, reassignApplication, generateWhatsAppMessage, whatsappLink,
 } from "@/lib/recruitment";
 
+const ROYAL = "#0D47A1";
+const ORANGE = "#FF6A00";
 const STATUS_LABEL = {
   new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled",
   interviewed: "Interviewed", selected: "Selected", rejected: "Rejected", on_hold: "On Hold",
   joining: "Joining Confirmed",
+};
+const STATUS_COLOR = {
+  new: "#1976D2", shortlisted: ORANGE, interview_scheduled: "#7C4DFF",
+  interviewed: "#1976D2", selected: "#10B981", rejected: "#64748B", on_hold: "#94A3B8", joining: "#10B981",
 };
 // Which statuses email/WhatsApp fire for
 const EMAIL_ON = new Set(["shortlisted", "interview_scheduled", "selected", "rejected"]);
@@ -126,10 +132,10 @@ export default function ApplicationDetail() {
 
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-extrabold">{app.name}</h1>
+          <h1 className="font-heading text-2xl md:text-3xl font-extrabold" style={{ color: ROYAL }}>{app.name}</h1>
           <div className="text-sm text-slate-500 font-mono">{app.application_number} • {app.job_title}</div>
         </div>
-        <span className="sk-badge sk-badge-info">Current Status: {STATUS_LABEL[app.status] || app.status}</span>
+        <span className="text-[11px] font-bold uppercase px-3 py-1.5 rounded-full text-white" style={{ background: STATUS_COLOR[app.status] || "#64748B" }}>Current Status: {STATUS_LABEL[app.status] || app.status}</span>
       </div>
 
       {app.converted_employee_id && (
@@ -178,16 +184,16 @@ export default function ApplicationDetail() {
       <div className="sk-card p-5 mt-4 space-y-3">
         <div className="font-heading font-bold">Actions</div>
         <div className="flex flex-wrap gap-2">
-          {canShortlist && <button disabled={busy} className="sk-btn-primary" onClick={() => doChange("shortlisted")}>Shortlist</button>}
-          {canSchedule && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("interview")}>Schedule Interview</button>}
+          {canShortlist && <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => doChange("shortlisted")}>Shortlist</button>}
+          {canSchedule && <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => setPanel("interview")}>Schedule Interview</button>}
           {canReschedule && <button disabled={busy} className="sk-btn-ghost" onClick={() => { setIv({ interview_date: app.interview_date || "", interview_time: app.interview_time || "", interview_mode: app.interview_mode || "in_person", interviewer: app.interviewer || "" }); setPanel("interview"); }}><Repeat className="w-4 h-4" /> Reschedule</button>}
-          {canMarkInterviewed && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("outcome")}>Mark Interviewed</button>}
-          {canDecide && <button disabled={busy} className="sk-btn-accent" onClick={() => doChange("selected")}>Select</button>}
-          {canMarkJoining && <button disabled={busy} className="sk-btn-accent" onClick={() => setPanel("joining")}>Confirm Joining</button>}
+          {canMarkInterviewed && <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => setPanel("outcome")}>Mark Interviewed</button>}
+          {canDecide && <button disabled={busy} className="sk-btn-accent text-white" style={{ background: ORANGE, borderColor: ORANGE }} onClick={() => doChange("selected")}>Select</button>}
+          {canMarkJoining && <button disabled={busy} className="sk-btn-accent text-white" style={{ background: ORANGE, borderColor: ORANGE }} onClick={() => setPanel("joining")}>Confirm Joining</button>}
           {canRejectOrHold && <button disabled={busy} className="sk-btn-ghost" onClick={() => setPanel("reject")}>Reject</button>}
           {canRejectOrHold && <button disabled={busy} className="sk-btn-ghost" onClick={() => setPanel("hold")}>On Hold</button>}
-          {canReassign && <button disabled={busy} className="sk-btn-primary" onClick={() => setPanel("reassign")}><Repeat className="w-4 h-4" /> Reassign to Another Role</button>}
-          {canConvert && <button disabled={busy} className="sk-btn-accent" onClick={goConvert}><UserPlus className="w-4 h-4" /> Convert to Employee</button>}
+          {canReassign && <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => setPanel("reassign")}><Repeat className="w-4 h-4" /> Reassign to Another Role</button>}
+          {canConvert && <button disabled={busy} className="sk-btn-accent text-white" style={{ background: ORANGE, borderColor: ORANGE }} onClick={goConvert}><UserPlus className="w-4 h-4" /> Convert to Employee</button>}
           {EMAIL_ON.has(app.status) && (
             <button disabled={busy} className="sk-btn-ghost" onClick={async () => {
               const r = await sendStatusEmail(id, app.status, true);
@@ -213,7 +219,7 @@ export default function ApplicationDetail() {
               <option value="">Select…</option>{interviewers.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></F>
             <div className="md:col-span-2 flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => setPanel(null)}>Cancel</button>
-              <button disabled={busy || !iv.interview_date || !iv.interview_time || !iv.interviewer} className="sk-btn-primary"
+              <button disabled={busy || !iv.interview_date || !iv.interview_time || !iv.interviewer} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }}
                 onClick={() => doChange("interview_scheduled", iv)}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm {canReschedule ? "Reschedule" : "Schedule"}</button>
             </div>
           </div>
@@ -225,7 +231,7 @@ export default function ApplicationDetail() {
             <F label="Rating (1–5)"><input type="number" min="1" max="5" className="sk-input" value={outcome.interview_rating} onChange={e => setOutcome({ ...outcome, interview_rating: e.target.value })} /></F>
             <div className="flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => setPanel(null)}>Cancel</button>
-              <button disabled={busy} className="sk-btn-primary" onClick={() => doChange("interviewed", {
+              <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => doChange("interviewed", {
                 interview_feedback: outcome.interview_feedback || null,
                 interview_rating: outcome.interview_rating ? Number(outcome.interview_rating) : null,
               })}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save Outcome</button>
@@ -238,7 +244,7 @@ export default function ApplicationDetail() {
             <F label="Joining Date *"><input type="date" required className="sk-input" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} /></F>
             <div className="flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => { setPanel(null); setJoiningDate(""); }}>Cancel</button>
-              <button disabled={busy || !joiningDate} className="sk-btn-primary" onClick={() => doChange("joining", { joining_date: joiningDate })}>
+              <button disabled={busy || !joiningDate} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => doChange("joining", { joining_date: joiningDate })}>
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Joining
               </button>
             </div>
@@ -255,7 +261,7 @@ export default function ApplicationDetail() {
             <div className="text-xs text-slate-500">This resets the application to "New" on the selected position — the candidate's original details, CV, and full history stay attached to this same application.</div>
             <div className="flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => { setPanel(null); setReasonNote(""); setReassignTo(""); }}>Cancel</button>
-              <button disabled={busy || !reassignTo} className="sk-btn-primary" onClick={doReassign}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Reassign</button>
+              <button disabled={busy || !reassignTo} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={doReassign}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Reassign</button>
             </div>
           </div>
         )}
@@ -265,7 +271,7 @@ export default function ApplicationDetail() {
             <F label="Note (optional)"><textarea rows={2} className="sk-input" value={reasonNote} onChange={e => setReasonNote(e.target.value)} /></F>
             <div className="flex justify-end gap-2">
               <button className="sk-btn-ghost" onClick={() => { setPanel(null); setReasonNote(""); }}>Cancel</button>
-              <button disabled={busy} className="sk-btn-primary" onClick={() => doChange(panel === "reject" ? "rejected" : "on_hold", { note: reasonNote || null })}>
+              <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={() => doChange(panel === "reject" ? "rejected" : "on_hold", { note: reasonNote || null })}>
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} Confirm {panel === "reject" ? "Reject" : "On Hold"}
               </button>
             </div>
