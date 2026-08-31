@@ -22,8 +22,8 @@ export async function checkDuplicateApplication(job_opening_id, email, phone) {
 export async function checkApplicationStatus(application_number, email, phone) {
   const { data, error } = await supabase.rpc("check_application_status", {
     p_application_number: application_number.trim(),
-    p_email: email.trim(),
-    p_phone: phone.trim(),
+    p_email: email ? email.trim() : null,
+    p_phone: phone ? phone.trim() : null,
   });
   if (error) throw error;
   return data?.[0] || null;
