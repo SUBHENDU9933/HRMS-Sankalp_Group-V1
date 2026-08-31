@@ -16,16 +16,21 @@ const STATUS_BADGE = {
 };
 
 export default function PublicStatus() {
-  const [form, setForm] = useState({ application_number: "", email: "", phone: "" });
+  const [form, setForm] = useState({ application_number: "", contact: "" });
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [notFound, setNotFound] = useState(false);
+
+  const isEmail = (v) => v.includes("@");
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setResult(null); setNotFound(false);
     try {
-      const r = await checkApplicationStatus(form.application_number, form.email, form.phone);
+      const contact = form.contact.trim();
+      const email = isEmail(contact) ? contact : null;
+      const phone = isEmail(contact) ? null : contact;
+      const r = await checkApplicationStatus(form.application_number, email, phone);
       if (!r) setNotFound(true); else setResult(r);
     } catch (err) {
       toast.error(err.message || "Lookup failed");
@@ -47,20 +52,19 @@ export default function PublicStatus() {
 
         <form onSubmit={submit} className="sk-card p-5 space-y-4">
           <F label="Application Number *"><input required placeholder="APP-2026-0001" className="sk-input" value={form.application_number} onChange={e => setForm({ ...form, application_number: e.target.value })} /></F>
-          <F label="Email *"><input type="email" required className="sk-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></F>
-          <F label="Phone *"><input required className="sk-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></F>
+          <F label="Phone or Email *"><input required placeholder="Phone number or email address" className="sk-input" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} /></F>
           <button disabled={busy} className="sk-btn-primary w-full">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Check Status</button>
         </form>
 
         {notFound && (
           <div className="sk-card p-5 mt-4 text-center text-sm text-slate-600 flex flex-col items-center gap-2">
             <XCircle className="w-8 h-8 text-slate-400" />
-            No matching application found. Please double-check your application number, email, and phone.
+            No matching application found. Please double-check your application number and phone/email.
           </div>
         )}
 
         {result && (
-          <div className="sk-card p-5 mt-4 space-y-3">
+          <div className="sk-card p-5 mt-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-heading font-bold">{result.name}</div>
@@ -68,9 +72,11 @@ export default function PublicStatus() {
               </div>
               <span className={`sk-badge ${STATUS_BADGE[result.status] || "sk-badge-neutral"}`}>{STATUS_LABEL[result.status] || result.status}</span>
             </div>
+
             {result.status === "interview_scheduled" && (
               <div className="text-sm bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1">
-                <div><span className="text-slate-400">Interview Date:</span> {result.interview_date}</div>
+                <div className="font-semibold text-xs text-slate-500 uppercase mb-1">Interview Details</div>
+                <div><span className="text-slate-400">Date:</span> {result.interview_date}</div>
                 <div><span className="text-slate-400">Time:</span> {result.interview_time}</div>
                 <div><span className="text-slate-400">Mode:</span> {result.interview_mode}</div>
               </div>
@@ -80,7 +86,22 @@ export default function PublicStatus() {
                 <span className="text-slate-400">Joining Date:</span> {result.joining_date}
               </div>
             )}
-            <div className="text-xs text-slate-400 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Applied on {new Date(result.applied_at).toLocaleDateString()}</div>
+
+            <div>
+              <div className="font-semibold text-xs text-slate-500 uppercase mb-1.5">Submitted Application Details</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div><span className="text-slate-400">Email:</span> {result.email}</div>
+                <div><span className="text-slate-400">Phone:</span> {result.phone}</div>
+                <div><span className="text-slate-400">Experience:</span> {result.experience_years ?? "—"} yrs</div>
+                <div><span className="text-slate-400">Current Company:</span> {result.current_company || "—"}</div>
+                <div><span className="text-slate-400">Education:</span> {result.education || "—"}</div>
+                <div><span className="text-slate-400">Expected Salary:</span> {result.expected_salary ? `₹${result.expected_salary}` : "—"}</div>
+              </div>
+              {result.current_address && <div className="text-sm mt-1"><span className="text-slate-400">Address:</span> {result.current_address}</div>}
+              {result.cover_note && <div className="text-sm mt-1"><span className="text-slate-400">Cover Note:</span> {result.cover_note}</div>}
+            </div>
+
+            <div className="text-xs text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-100"><CheckCircle2 className="w-3.5 h-3.5" /> Applied on {new Date(result.applied_at).toLocaleDateString()}</div>
           </div>
         )}
       </div>
