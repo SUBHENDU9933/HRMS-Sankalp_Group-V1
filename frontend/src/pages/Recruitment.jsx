@@ -4,13 +4,16 @@ import { Search, Briefcase, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { listApplications, listJobOpenings } from "@/lib/recruitment";
 
+const ROYAL = "#0D47A1";
+const ORANGE = "#FF6A00";
 const STATUS_LABEL = {
   new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled",
   interviewed: "Interviewed", selected: "Selected", rejected: "Rejected", on_hold: "On Hold",
+  joining: "Joining Confirmed",
 };
-const STATUS_BADGE = {
-  new: "sk-badge-info", shortlisted: "sk-badge-warning", interview_scheduled: "sk-badge-warning",
-  interviewed: "sk-badge-info", selected: "sk-badge-success", rejected: "sk-badge-danger", on_hold: "sk-badge-neutral",
+const STATUS_COLOR = {
+  new: "#1976D2", shortlisted: ORANGE, interview_scheduled: "#7C4DFF",
+  interviewed: "#1976D2", selected: "#10B981", rejected: "#64748B", on_hold: "#94A3B8", joining: "#10B981",
 };
 
 export default function Recruitment() {
@@ -32,10 +35,10 @@ export default function Recruitment() {
   return (
     <div className="sk-page">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="font-heading text-2xl md:text-3xl font-extrabold">Recruitment</h1>
+        <h1 className="font-heading text-2xl md:text-3xl font-extrabold" style={{ color: ROYAL }}>Recruitment</h1>
         <div className="flex gap-2">
-          <Link to="/recruitment/openings" className="sk-btn-ghost"><Briefcase className="w-4 h-4" /> Job Openings</Link>
-          <a href="/apply" target="_blank" rel="noreferrer" className="sk-btn-accent"><ExternalLink className="w-4 h-4" /> Public Form</a>
+          <Link to="/recruitment/openings" className="sk-btn-ghost" style={{ borderColor: `${ROYAL}30`, color: ROYAL }}><Briefcase className="w-4 h-4" /> Job Openings</Link>
+          <a href="/apply" target="_blank" rel="noreferrer" className="sk-btn-accent text-white" style={{ background: ORANGE, borderColor: ORANGE }}><ExternalLink className="w-4 h-4" /> Public Form</a>
         </div>
       </div>
 
@@ -63,7 +66,7 @@ export default function Recruitment() {
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="text-xs text-slate-400 hidden md:block">{new Date(r.applied_at).toLocaleDateString()}</span>
-              <span className={`sk-badge ${STATUS_BADGE[r.status] || "sk-badge-neutral"}`}>{STATUS_LABEL[r.status] || r.status}</span>
+              <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-full text-white" style={{ background: STATUS_COLOR[r.status] || "#64748B" }}>{STATUS_LABEL[r.status] || r.status}</span>
             </div>
           </Link>
         ))}
