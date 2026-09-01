@@ -89,6 +89,26 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 
 ## Change Log (newest first)
 ### 2026-09-01 — Claude
+- **Fixed the recruitment HR Desk email address typo** in the live
+  `recruitment-email` function (deployed as version 22). Was hardcoded as
+  `care.sankalpgp@gmail.com` (missing the "r") in ChatGPT's footer redesign
+  (v21) — confirmed with Subhendu and corrected to `care.sankalpgrp@gmail.com`.
+  Confirmed with Subhendu that the phone number `8910546151` is intentionally
+  the recruitment-specific HR Desk number (distinct from the general company
+  phone `9748297025` used elsewhere in the app) — left unchanged. Everything
+  else in ChatGPT's v21 rewrite (layout, hardcoded contact block instead of
+  pulling from `company_settings`, address, map link, all 6 email templates)
+  was left exactly as-is — this was a single-string surgical fix, not a
+  revert or rewrite.
+- **Known limitation, not fixed (flagging for awareness):** contact info in
+  this function is now hardcoded rather than pulled from `company_settings`
+  like the original design. If the office address/website/email ever change,
+  someone needs to edit the Edge Function source directly — it won't pick up
+  changes made via the Company Settings page anymore. Not touching this
+  without being asked, since it works correctly as long as the hardcoded
+  values stay accurate.
+
+### 2026-09-01 — Claude
 - **New: manual edit + delete for submitted applications.** Admin/manager can
   now correct candidate-submitted details (name/email/phone/experience/company/
   education/address/expected salary/cover note) directly from Application
