@@ -5,7 +5,7 @@ import {
   Shield, ArrowRight, TrendingUp, Users, Target, Facebook, Instagram, AtSign, Youtube,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LOGO } from "@/lib/utils-app";
+const LOGO = "https://emp.sankalpdesign.com/sankalp-group-logo-email.png"; // dedicated recruitment brand logo — same asset used in emails
 import {
   listOpenPositions, checkDuplicateApplication, submitApplication, uploadFile, sendStatusEmail,
 } from "@/lib/recruitment";
