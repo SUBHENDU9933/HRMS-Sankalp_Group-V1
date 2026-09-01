@@ -8,9 +8,7 @@ single place both AI assistants (and Subhendu) can see the *complete* picture:
 frontend + database + backend functions together.
 
 **Rule for both assistants:** Before making changes to the recruitment system, read
-this file first — especially the "Current State" section. After making changes,
-add a dated entry to the Change Log section below (newest on top), and update
-"Current State" if you added/changed a table column, RPC, or Edge Function.
+this file first — especially the "Current State" section. After making changes, add a dated entry to the Change Log section below (newest on top), and update "Current State" if you added/changed a table column, RPC, or Edge Function.
 
 ---
 
@@ -62,7 +60,7 @@ add a dated entry to the Change Log section below (newest on top), and update
 
 ### Status pipeline
 `new → shortlisted → interview_scheduled (→ interview_rescheduled any number of
-times) → interviewed → selected → joining → (Convert to Employee)`
+ times) → interviewed → selected → joining → (Convert to Employee)`
 Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (terminal)
 
 ### Frontend pages (all in `frontend/src/`)
@@ -77,9 +75,23 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
   `https://emp.sankalpdesign.com/sankalp-group-logo-email.png`
 - Colors: Royal Blue `#0D47A1`, Orange `#FF6A00`
 
+### Current job openings
+10 active/open roles are currently listed, including the new `WFH` role:
+`RLE`, `RLM`, `SKD`, `TEL`, `FRL`, `PCS`, `SME`, `BDE`, `BDM`, `WFH`.
+
 ---
 
 ## Change Log (newest first)
+
+### 2026-09-01 — ChatGPT
+- **Created new open job role:** `Work From Home — Freelance / Project-Based Associate` (`WFH`).
+- Purpose: flexible work-from-home opportunity for freelancers/independent professionals who can handle specific assignments, projects, task-based work, or commission/incentive-based work.
+- Employment type: **Freelance / Project-Based / Commission**.
+- Work type: **Remote / Work From Home — Physical Interview Required**.
+- Candidates must **apply online through the official recruitment form** and **attend a physical interview at the Sankalp Group office in Kolkata**. The exact assignment, scope, deliverables, timeline, and remuneration are decided only after interview and discussion.
+- Compensation: **Project / Assignment / Commission Based — remuneration decided after interview & discussion**; no fixed salary was promised.
+- Added directly to Supabase `job_openings` using the existing job-opening data structure. No table, RPC, Edge Function, email template, or frontend schema changes were made.
+- Verified the new row is `status='open'` with code `WFH`.
 
 ### 2026-09-01 — Claude
 - **Fixed grammar** in the browser tab title ChatGPT set earlier that day. Final:
@@ -164,4 +176,4 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## For ChatGPT (or whoever reads this next)
-If you're an AI assistant working on this repo: please read the "Current State" section above before changing anything in the recruitment module, and add a dated entry to the Change Log when you're done — especially if you touch Supabase (tables, RPCs, Edge Functions), since none of that shows up in git.
+If you're an AI assistant working on this repo: please read the "Current State" section above before changing anything in the recruitment module, and add a dated entry to the Change Log when you're done — especially if you touch Supabase (tables, columns, RPCs, Edge Functions), since none of that shows up in git.
