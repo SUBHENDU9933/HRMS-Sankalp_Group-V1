@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle, MessageCircle, Repeat, MapPin } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, UserPlus, Mail, AlertTriangle, MessageCircle, Repeat, MapPin, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { listEmployees } from "@/lib/data";
@@ -9,6 +9,7 @@ import LocationMapTile from "@/components/LocationMapTile";
 import {
   getApplication, getApplicationHistory, changeStatus, updateNotes, sendStatusEmail,
   listJobOpenings, reassignApplication, generateWhatsAppMessage, whatsappLink,
+  updateApplicationDetails, deleteApplication,
 } from "@/lib/recruitment";
 
 const ROYAL = "#0D47A1";
@@ -43,6 +44,9 @@ export default function ApplicationDetail() {
   const [reasonNote, setReasonNote] = useState("");
   const [joiningDate, setJoiningDate] = useState("");
   const [reassignTo, setReassignTo] = useState("");
+  const [editForm, setEditForm] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteTyped, setDeleteTyped] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -97,6 +101,37 @@ export default function ApplicationDetail() {
     finally { setBusy(false); }
   };
 
+  const openEdit = () => setEditForm({
+    name: app.name || "", email: app.email || "", phone: app.phone || "",
+    experience_years: app.experience_years ?? "", current_company: app.current_company || "",
+    education: app.education || "", current_address: app.current_address || "",
+    expected_salary: app.expected_salary ?? "", cover_note: app.cover_note || "",
+  });
+  const saveEditDetails = async () => {
+    setBusy(true);
+    try {
+      await updateApplicationDetails(id, {
+        ...editForm,
+        experience_years: editForm.experience_years === "" ? null : Number(editForm.experience_years),
+        expected_salary: editForm.expected_salary === "" ? null : Number(editForm.expected_salary),
+      });
+      toast.success("Application details updated");
+      setEditForm(null);
+      load();
+    } catch (err) { toast.error(err.message || "Failed to save changes"); }
+    finally { setBusy(false); }
+  };
+
+  const doDelete = async () => {
+    if (deleteTyped !== "DELETE") return;
+    setBusy(true);
+    try {
+      await deleteApplication(id);
+      toast.success("Application deleted");
+      nav("/recruitment");
+    } catch (err) { toast.error(err.message || "Failed to delete application"); setBusy(false); }
+  };
+
   const goConvert = () => {
     nav("/employees/new", {
       state: {
@@ -139,7 +174,30 @@ export default function ApplicationDetail() {
       </div>
       {app.converted_employee_id && <div className="sk-card p-4 mt-4 bg-emerald-50 border-emerald-200 text-sm text-emerald-800 flex items-center gap-2"><UserPlus className="w-4 h-4" /> Converted to employee on {new Date(app.converted_at).toLocaleDateString()}.</div>}
       <div className="sk-card p-5 mt-4 space-y-3">
-        <div className="font-heading font-bold">Candidate Details</div>
+        <div className="flex items-center justify-between">
+          <div className="font-heading font-bold">Candidate Details</div>
+          {!editForm && <button className="sk-btn-ghost" onClick={openEdit}><Pencil className="w-3.5 h-3.5" /> Edit</button>}
+        </div>
+        {editForm ? (
+          <div className="space-y-3">
+            <div className="text-xs text-slate-500 bg-amber-50 border border-amber-100 rounded-lg p-2">Correcting details from the CV or a follow-up call is fine — this won't affect status, CV, or photo.</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <F label="Full Name"><input className="sk-input" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></F>
+              <F label="Phone"><input className="sk-input" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} /></F>
+              <F label="Email"><input type="email" className="sk-input" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} /></F>
+              <F label="Experience (years)"><input type="number" min="0" step="0.5" className="sk-input" value={editForm.experience_years} onChange={e => setEditForm({ ...editForm, experience_years: e.target.value })} /></F>
+              <F label="Current Company"><input className="sk-input" value={editForm.current_company} onChange={e => setEditForm({ ...editForm, current_company: e.target.value })} /></F>
+              <F label="Education"><input className="sk-input" value={editForm.education} onChange={e => setEditForm({ ...editForm, education: e.target.value })} /></F>
+              <F label="Expected Salary"><input type="number" min="0" className="sk-input" value={editForm.expected_salary} onChange={e => setEditForm({ ...editForm, expected_salary: e.target.value })} /></F>
+            </div>
+            <F label="Current Address"><textarea rows={2} className="sk-input" value={editForm.current_address} onChange={e => setEditForm({ ...editForm, current_address: e.target.value })} /></F>
+            <F label="Cover Note"><textarea rows={2} className="sk-input" value={editForm.cover_note} onChange={e => setEditForm({ ...editForm, cover_note: e.target.value })} /></F>
+            <div className="flex justify-end gap-2">
+              <button className="sk-btn-ghost" onClick={() => setEditForm(null)}>Cancel</button>
+              <button disabled={busy} className="sk-btn-primary" style={{ background: ROYAL, borderColor: ROYAL }} onClick={saveEditDetails}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Save Changes</button>
+            </div>
+          </div>
+        ) : (
         <div className="flex items-start gap-4">
           {app.photo_url ? <img src={app.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover" /> : <div className="w-20 h-20 rounded-xl bg-slate-100 grid place-items-center text-slate-400 text-xs">No photo</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm flex-1">
@@ -148,8 +206,9 @@ export default function ApplicationDetail() {
             <div><span className="text-slate-400">Education:</span> {app.education || "—"}</div><div><span className="text-slate-400">Expected Salary:</span> {app.expected_salary ? `₹${app.expected_salary}` : "—"}</div>
           </div>
         </div>
-        {app.current_address && <div className="text-sm"><span className="text-slate-400">Address:</span> {app.current_address}</div>}
-        {app.cover_note && <div className="text-sm"><span className="text-slate-400">Cover Note:</span> {app.cover_note}</div>}
+        )}
+        {!editForm && app.current_address && <div className="text-sm"><span className="text-slate-400">Address:</span> {app.current_address}</div>}
+        {!editForm && app.cover_note && <div className="text-sm"><span className="text-slate-400">Cover Note:</span> {app.cover_note}</div>}
         <a href={app.cv_url} target="_blank" rel="noreferrer" className="sk-btn-ghost inline-flex w-auto"><FileText className="w-4 h-4" /> View CV</a>
       </div>
       {app.latitude != null && app.longitude != null && <div className="sk-card p-5 mt-4"><div className="font-heading font-bold mb-3 flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Location at Submission</div><div className="flex items-start gap-4 flex-wrap"><LocationMapTile lat={app.latitude} lng={app.longitude} zoom={16} size={200} /><div className="text-sm space-y-1"><div><span className="text-slate-400">Coordinates:</span> {app.latitude.toFixed(6)}, {app.longitude.toFixed(6)}</div>{app.location_accuracy != null && <div><span className="text-slate-400">Accuracy:</span> ±{Math.round(app.location_accuracy)}m</div>}<a href={`https://www.google.com/maps?q=${app.latitude},${app.longitude}`} target="_blank" rel="noreferrer" className="text-xs font-semibold underline" style={{ color: "#0D47A1" }}>Open in Google Maps</a></div></div></div>}
@@ -186,6 +245,26 @@ export default function ApplicationDetail() {
       </div>
       <div className="sk-card p-5 mt-4 space-y-3"><div className="font-heading font-bold">HR Notes</div><textarea rows={3} className="sk-input" value={notes} onChange={e => setNotes(e.target.value)} /><div className="flex justify-end"><button disabled={busy} className="sk-btn-ghost" onClick={saveNotes}>Save Notes</button></div></div>
       <div className="sk-card p-5 mt-4"><div className="font-heading font-bold mb-2">Status History</div><div className="space-y-2 text-sm">{history.length === 0 ? <div className="text-slate-400">No changes yet.</div> : history.map(h => <div key={h.id} className="flex justify-between border-b border-slate-50 pb-1.5"><div>{h.old_status ? `${STATUS_LABEL[h.old_status] || h.old_status} → ` : ""}{STATUS_LABEL[h.new_status] || h.new_status}{h.note && <span className="text-slate-400"> — {h.note}</span>}</div><div className="text-slate-400 text-xs">{h.actor?.name || "—"} • {new Date(h.changed_at).toLocaleString()}</div></div>)}</div></div>
+
+      {isAdmin && (
+        <div className="sk-card p-5 mt-4 border-red-200 bg-red-50/40">
+          <div className="font-heading font-bold text-red-700 mb-1">Danger Zone</div>
+          <div className="text-xs text-slate-500 mb-3">Permanently deletes this application and its full history. The uploaded CV/photo files are not removed from storage. This cannot be undone.</div>
+          {!deleteConfirm ? (
+            <button className="sk-btn-ghost border-red-300 text-red-600" onClick={() => setDeleteConfirm(true)}><Trash2 className="w-3.5 h-3.5" /> Delete Application</button>
+          ) : (
+            <div className="space-y-2">
+              <F label={`Type DELETE to confirm removing ${app.name}'s application (${app.application_number})`}>
+                <input className="sk-input" value={deleteTyped} onChange={e => setDeleteTyped(e.target.value)} placeholder="DELETE" />
+              </F>
+              <div className="flex justify-end gap-2">
+                <button className="sk-btn-ghost" onClick={() => { setDeleteConfirm(false); setDeleteTyped(""); }}>Cancel</button>
+                <button disabled={busy || deleteTyped !== "DELETE"} className="sk-btn-primary bg-red-600 border-red-600 disabled:opacity-50" onClick={doDelete}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Permanently Delete</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
