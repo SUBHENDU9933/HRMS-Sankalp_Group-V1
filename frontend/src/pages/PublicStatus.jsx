@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Search, Loader2, CheckCircle2, XCircle, Hash, Phone as PhoneIcon, Facebook, Instagram, AtSign, Youtube } from "lucide-react";
 import { toast } from "sonner";
-import { LOGO } from "@/lib/utils-app";
+const LOGO = "https://emp.sankalpdesign.com/sankalp-group-logo-email.png"; // dedicated recruitment brand logo — same asset used in emails
 import { checkApplicationStatus } from "@/lib/recruitment";
 
 const ROYAL = "#0D47A1";
