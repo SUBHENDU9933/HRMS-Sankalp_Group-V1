@@ -22,7 +22,7 @@ this file first — especially the "Current State" section. After making changes
   `last_email_status` columns on `job_applications` (skips duplicate sends unless
   `force:true`). Sanitizes all dynamic content (name/job title/interviewer/address)
   through `asciiSafe()` to prevent SMTP quoted-printable corruption from em-dashes
-  and other non-ASCII typographic characters.
+  and other non-ASCII typographic characters. **Version 21 (ACTIVE).**
 - **`recruitment-email-rescheduled`** — **DEPRECATED, unused.** ChatGPT originally
   built interview-reschedule emails as a separate function. Claude consolidated
   this into `recruitment-email` (kind=`interview_rescheduled`) on 2026-09-01.
@@ -74,6 +74,13 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 - Logo (same file used everywhere — apply/status pages + all emails):
   `https://emp.sankalpdesign.com/sankalp-group-logo-email.png`
 - Colors: Royal Blue `#0D47A1`, Orange `#FF6A00`
+- Email footer: 50/50 split. Left side contains the Sankalp Group logo and clickable
+  social icons (Facebook, Instagram, Threads, YouTube). Right side contains
+  **HR Desk • Urgent Matters Only**, clickable phone/WhatsApp `8910546151`,
+  `care.sankalpgp@gmail.com`, and `sankalpinterior.com`. A full-width office/
+  interview-venue row below contains a clickable map-pin and address plus
+  **View Office on Google Maps →** linking to
+  `https://maps.app.goo.gl/kuycqqXVfVfPmZBb7`.
 
 ### Current job openings
 10 active/open roles are currently listed, including the new `WFH` role:
@@ -82,6 +89,21 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+
+### 2026-09-01 — ChatGPT
+- **Redesigned the shared recruitment email footer** in live Supabase Edge Function
+  `recruitment-email` (deployed as version 21).
+- Footer is now a responsive **50% / 50%** layout: left side contains the current
+  Sankalp Group logo and clickable social icons (Facebook, Instagram, Threads,
+  YouTube); right side contains **HR Desk • Urgent Matters Only**, Call / WhatsApp
+  `8910546151`, `care.sankalpgp@gmail.com`, and `sankalpinterior.com` as clickable
+  contact links.
+- Added a full-width **Office Address / Interview Venue** section beneath the two
+  columns. The address and **View Office on Google Maps →** action both link to
+  `https://maps.app.goo.gl/kuycqqXVfVfPmZBb7`, with a map-pin icon.
+- Kept the existing Sankalp Group logo asset, Royal Blue/Orange brand system,
+  six email event kinds, idempotency behavior, and SMTP flow intact.
+- No database schema, RPC, or application-data changes were made.
 
 ### 2026-09-01 — ChatGPT
 - **Created new open job role:** `Work From Home — Freelance / Project-Based Associate` (`WFH`).
@@ -110,15 +132,9 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ### 2026-09-01 — Claude
 - **Consolidated reschedule emails.** Merged ChatGPT's standalone
   `recruitment-email-rescheduled` function into the main `recruitment-email`
-  function as a 6th template kind (`interview_rescheduled`). Reason: avoid two
-  functions drifting out of sync, and the standalone version was missing the
-  `asciiSafe()` non-ASCII sanitization that the main function has, which meant
-  job titles with em-dashes (e.g. "Telecaller — Female / Male") could corrupt the
-  reschedule email body via the same SMTP quoted-printable bug fixed
-  earlier. `recruitment.js`'s `sendStatusEmail()` now always targets
-  `recruitment-email`; adopted ChatGPT's `supabase.functions.invoke()` calling
-  pattern (more reliable than the original hand-built `fetch()`).
-- Created this changelog file.
+  function as a 6th template kind (`interview_rescheduled`) on 2026-09-01.
+  `recruitment.js`'s `sendStatusEmail()` targets `recruitment-email` using
+  `supabase.functions.invoke()`.
 
 ### 2026-09-01 — Claude
 - **Fixed grammar** in the browser tab title ChatGPT set earlier that day. Final:
