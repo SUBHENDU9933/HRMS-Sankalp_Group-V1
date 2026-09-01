@@ -133,6 +133,14 @@ export async function markConverted(application_id, employee_id) {
 /* ---------------- email (best-effort, never blocks status change) ---------------- */
 export async function sendStatusEmail(application_id, kind, force = false) {
   try {
+    // Backward compatibility: the current deployed recruitment-email Edge Function
+    // accepts interview_scheduled, while older/newer frontend code may call the
+    // more explicit interview_rescheduled event. A reschedule must bypass the
+    // normal idempotency guard so the candidate receives the new interview details.
+    const isReschedule = kind === "interview_rescheduled";
+    const apiKind = isReschedule ? "interview_scheduled" : kind;
+    const apiForce = isReschedule ? true : force;
+
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
     const url = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/recruitment-email`;
@@ -143,7 +151,7 @@ export async function sendStatusEmail(application_id, kind, force = false) {
         Authorization: `Bearer ${token || process.env.REACT_APP_SUPABASE_ANON_KEY}`,
         apikey: process.env.REACT_APP_SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ application_id, kind, force }),
+      body: JSON.stringify({ application_id, kind: apiKind, force: apiForce }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body?.error || "Email send failed");
