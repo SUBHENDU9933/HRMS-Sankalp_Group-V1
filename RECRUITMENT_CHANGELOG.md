@@ -9,7 +9,7 @@ frontend + database + backend functions together.
 
 **Rule for both assistants:** Before making changes to the recruitment system, read
 this file first — especially the "Current State" section. After making changes,
-add a dated entry to the "Change Log" section below (newest on top), and update
+add a dated entry to the Change Log section below (newest on top), and update
 "Current State" if you added/changed a table column, RPC, or Edge Function.
 
 ---
@@ -81,14 +81,22 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 
 ## Change Log (newest first)
 
+### 2026-09-01 — ChatGPT
+- **Updated public application page browser title.** Changed the global browser/tab
+  title from `Sankalp Interior Solution — HRMS` to `Apply Your Desigr Job (Application /
+  Career Section) - Sankalp Group`, as requested, so the `/apply` page presents the
+  recruitment/career purpose more clearly when shared on WhatsApp or viewed in a browser.
+- Updated the global meta description to a recruitment-focused description. No
+  Supabase tables, RPCs, Edge Functions, email triggers, or application data were changed.
+
 ### 2026-09-01 — Claude
 - **Consolidated reschedule emails.** Merged ChatGPT's standalone
   `recruitment-email-rescheduled` function into the main `recruitment-email`
   function as a 6th template kind (`interview_rescheduled`). Reason: avoid two
   functions drifting out of sync, and the standalone version was missing the
   `asciiSafe()` non-ASCII sanitization that the main function has, which meant
-  job titles with em-dashes (e.g. "Telecaller — Female / Male") could corrupt
-  the reschedule email body via the same SMTP quoted-printable bug fixed
+  job titles with em-dashes (e.g. "Telecaller — Female / Male") could corrupt the
+  reschedule email body via the same SMTP quoted-printable bug fixed
   earlier. `recruitment.js`'s `sendStatusEmail()` now always targets
   `recruitment-email`; adopted ChatGPT's `supabase.functions.invoke()` calling
   pattern (more reliable than the original hand-built `fetch()`).
@@ -106,9 +114,9 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
   random + guaranteed-unique via BEFORE INSERT trigger. Assigned job codes to
   all 9 postings (RLE, RLM, SKD, TEL, FRL, PCS, SME, BDE, BDM).
 - Fixed a real bug: admin Job Openings form had Work Type/Responsibilities/
-  Skills/Eligibility fields, but `saveJobOpening()` never sent them to the
-  backend — silently dropped on every save. Fixed; verified no data was lost
-  (no admin-UI edits had happened while the bug existed).
+  Skills/Eligibility fields, but `saveJobOpening()` never sent them to the backend —
+  silently dropped on every save. Fixed; verified no data was lost (no admin-UI edits
+  had happened while the bug existed).
 - Replaced brand logo everywhere (apply/status pages + emails) with new
   navy/gold SANKALP GROUP wordmark.
 - SMTP subject/body corruption bug found and fixed: em-dashes and other
@@ -144,7 +152,4 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## For ChatGPT (or whoever reads this next)
-If you're an AI assistant working on this repo: please read the "Current State"
-section above before changing anything in the recruitment module, and add a
-dated entry to the Change Log when you're done — especially if you touch
-Supabase (tables, RPCs, Edge Functions), since none of that shows up in git.
+If you're an AI assistant working on this repo: please read the "Current State" section above before changing anything in the recruitment module, and add a dated entry to the Change Log when you're done — especially if you touch Supabase (tables, RPCs, Edge Functions), since none of that shows up in git.
