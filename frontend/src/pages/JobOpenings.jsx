@@ -7,7 +7,7 @@ import { listJobOpenings, saveJobOpening } from "@/lib/recruitment";
 const ROYAL = "#0D47A1";
 const ORANGE = "#FF6A00";
 const empty = {
-  id: null, title: "", department: "", status: "open",
+  id: null, title: "", department: "", status: "open", code: "",
   employment_type: "", experience_required: "", salary_range: "", location: "", work_type: "",
   description: "", responsibilities: "", skills: "", eligibility: "",
 };
@@ -34,7 +34,7 @@ export default function JobOpenings() {
   };
 
   const editRow = (r) => setForm({
-    id: r.id, title: r.title, department: r.department || "", status: r.status,
+    id: r.id, title: r.title, department: r.department || "", status: r.status, code: r.code || "",
     employment_type: r.employment_type || "", experience_required: r.experience_required || "",
     salary_range: r.salary_range || "", location: r.location || "", work_type: r.work_type || "",
     description: r.description || "", responsibilities: r.responsibilities || "",
@@ -55,6 +55,7 @@ export default function JobOpenings() {
             <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Basic Details</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <F label="Title *"><input required className="sk-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></F>
+              <F label="Job Code * (3-4 letters, used in application numbers)"><input required maxLength={4} className="sk-input uppercase" placeholder="e.g. RLE" value={form.code || ""} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") })} /></F>
               <F label="Department"><input className="sk-input" value={form.department || ""} onChange={e => setForm({ ...form, department: e.target.value })} /></F>
               <F label="Employment Type"><input className="sk-input" placeholder="e.g. Full Time, Freelancer / Flexible" value={form.employment_type || ""} onChange={e => setForm({ ...form, employment_type: e.target.value })} /></F>
               <F label="Experience Required"><input className="sk-input" placeholder="e.g. Freshers & Experienced, 1-5 Years" value={form.experience_required || ""} onChange={e => setForm({ ...form, experience_required: e.target.value })} /></F>
