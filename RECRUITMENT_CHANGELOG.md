@@ -88,6 +88,18 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+### 2026-09-01 — Claude
+- **New: manual edit + delete for submitted applications.** Admin/manager can
+  now correct candidate-submitted details (name/email/phone/experience/company/
+  education/address/expected salary/cover note) directly from Application
+  Detail — for cases where the candidate couldn't fill every field correctly
+  and HR updates it from the CV or a follow-up call. New RPC:
+  `update_application_details(...)` (manager/admin, logs an audit entry to
+  `application_status_history`). Also added application deletion: new RPC
+  `delete_application(...)` (admin-only), type-"DELETE"-to-confirm in the UI.
+  Storage files (CV/photo) are intentionally NOT deleted — left in place to
+  avoid accidental data loss from a mis-scoped storage call.
+
 
 ### 2026-09-01 — ChatGPT
 - **Unified the legacy reschedule-email route with the shared recruitment email design.**
