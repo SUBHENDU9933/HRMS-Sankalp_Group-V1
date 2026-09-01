@@ -55,12 +55,15 @@ export async function submitApplication(p) {
 export async function listJobOpenings() {
   return thr(await supabase.from("job_openings").select("*").order("created_at", { ascending: false }));
 }
-export async function saveJobOpening({ id, title, department, description, status, employment_type, experience_required, salary_range, location }) {
+export async function saveJobOpening({ id, title, department, description, status, employment_type, experience_required, salary_range, location, work_type, responsibilities, eligibility, skills, compensation_type, code }) {
   const { data, error } = await supabase.rpc("upsert_job_opening", {
     p_id: id || null, p_title: title, p_department: department || null,
     p_description: description || null, p_status: status || "open",
     p_employment_type: employment_type || null, p_experience_required: experience_required || null,
     p_salary_range: salary_range || null, p_location: location || null,
+    p_work_type: work_type || null, p_responsibilities: responsibilities || null,
+    p_eligibility: eligibility || null, p_skills: skills || null,
+    p_compensation_type: compensation_type || null, p_code: code || null,
   });
   if (error) throw error;
   return data;
