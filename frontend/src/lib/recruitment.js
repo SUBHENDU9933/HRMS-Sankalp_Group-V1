@@ -133,29 +133,24 @@ export async function markConverted(application_id, employee_id) {
 /* ---------------- email (best-effort, never blocks status change) ---------------- */
 export async function sendStatusEmail(application_id, kind, force = false) {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
     const isReschedule = kind === "interview_rescheduled";
     const functionName = isReschedule ? "recruitment-email-rescheduled" : "recruitment-email";
-    const url = `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/${functionName}`;
-    const bodyPayload = isReschedule
+
+    // Use Supabase's Functions client instead of a hand-built fetch URL. This
+    // guarantees the call is made against the same Supabase project/config used
+    // by the app and automatically forwards the current authenticated JWT.
+    // The reschedule function intentionally receives only application_id + force.
+    const payload = isReschedule
       ? { application_id, force: true }
       : { application_id, kind, force };
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token || process.env.REACT_APP_SUPABASE_ANON_KEY}`,
-        apikey: process.env.REACT_APP_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(bodyPayload),
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body: payload,
     });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body?.error || "Email send failed");
-    return body;
+    if (error) throw error;
+    return data || { ok: true };
   } catch (e) {
     // Non-fatal — status already changed. Caller shows a toast warning.
-    return { ok: false, error: e.message };
+    return { ok: false, error: e.message || "Email send failed" };
   }
 }
 
