@@ -20,14 +20,13 @@ this file first — especially the "Current State" section. After making changes
   `selected`, `rejected`. Gmail SMTP. One shared HTML template system (Royal Blue
   `#0D47A1` / Orange `#FF6A00` brand). Idempotency guard via `last_emailed_kind` +
   `last_email_status` columns on `job_applications` (skips duplicate sends unless
-  `force:true`). Sanitizes all dynamic content (name/job title/interviewer/address)
-  through `asciiSafe()` to prevent SMTP quoted-printable corruption from em-dashes
-  and other non-ASCII typographic characters. **Version 21 (ACTIVE).**
-- **`recruitment-email-rescheduled`** — **DEPRECATED, unused.** ChatGPT originally
-  built interview-reschedule emails as a separate function. Claude consolidated
-  this into `recruitment-email` (kind=`interview_rescheduled`) on 2026-09-01.
-  This old function is still deployed but nothing calls it anymore. Safe to delete
-  when convenient — ask Subhendu to confirm before deleting.
+  `force:true`). Sanitizes all dynamic content through `asciiSafe()` to prevent SMTP
+  quoted-printable corruption from non-ASCII typographic characters. **Version 21 (ACTIVE).**
+- **`recruitment-email-rescheduled`** — legacy compatibility wrapper, **Version 2 (ACTIVE)**.
+  Older deployed frontend builds can still call this slug; it now forwards the request
+  to `recruitment-email` with `kind=interview_rescheduled` and `force=true`, so the
+  rescheduled email uses the exact same shared template/design/footer as all other
+  recruitment emails. It does not maintain a separate email template.
 
 ### Key Supabase RPCs (all SECURITY DEFINER, public schema)
 - `submit_application(...)` — public application submission (bypasses RLS SELECT
@@ -89,6 +88,19 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+
+### 2026-09-01 — ChatGPT
+- **Unified the legacy reschedule-email route with the shared recruitment email design.**
+- Investigated the live Supabase Edge Function logs and found that `recruitment-email-rescheduled`
+  was still receiving POST requests from an older/stale frontend path, even though the current
+  `recruitment-email` function is the documented consolidated email sender.
+- Deployed **`recruitment-email-rescheduled` Version 2** as a compatibility wrapper. It forwards
+  the same `application_id` to `recruitment-email` with `kind=interview_rescheduled` and `force=true`.
+- Result: whether the current frontend or an older deployed frontend invokes the reschedule route,
+  the candidate receives the **same shared premium HTML template, header, info-card styling,
+  50/50 footer, social icons, HR Desk contacts, office address, and Google Maps link** used by the
+  other recruitment email templates. Only the reschedule-specific wording/data changes.
+- No database schema, RPC, application data, or recruitment workflow was changed.
 
 ### 2026-09-01 — ChatGPT
 - **Redesigned the shared recruitment email footer** in live Supabase Edge Function
