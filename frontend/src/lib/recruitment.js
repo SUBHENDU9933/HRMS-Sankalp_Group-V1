@@ -122,6 +122,26 @@ export async function updateNotes(application_id, hr_notes) {
   if (error) throw error;
   return data;
 }
+export async function updateApplicationDetails(application_id, fields) {
+  const { data, error } = await supabase.rpc("update_application_details", {
+    p_application_id: application_id,
+    p_name: fields.name || null,
+    p_email: fields.email || null,
+    p_phone: fields.phone || null,
+    p_experience_years: fields.experience_years ?? null,
+    p_current_company: fields.current_company || null,
+    p_education: fields.education || null,
+    p_current_address: fields.current_address || null,
+    p_expected_salary: fields.expected_salary ?? null,
+    p_cover_note: fields.cover_note || null,
+  });
+  if (error) throw error;
+  return data;
+}
+export async function deleteApplication(application_id) {
+  const { error } = await supabase.rpc("delete_application", { p_application_id: application_id });
+  if (error) throw error;
+}
 export async function markConverted(application_id, employee_id) {
   const { data, error } = await supabase.rpc("mark_application_converted", {
     p_application_id: application_id, p_employee_id: employee_id,
