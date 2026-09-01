@@ -81,6 +81,12 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 
 ## Change Log (newest first)
 
+### 2026-09-01 — Claude
+- **Fixed grammar** in the browser tab title ChatGPT set earlier that day. Final:
+  "Apply for Your Desired Job — SANKALP GROUP" (was "Apply Your Desigr Job
+  (Application / Career Section) - Sankalp Group" — had both a typo and a
+  grammar issue). No Supabase changes.
+
 ### 2026-09-01 — ChatGPT
 - **Updated public application page browser title.** Changed the global browser/tab
   title from `Sankalp Interior Solution — HRMS` to `Apply Your Desigr Job (Application /
@@ -101,6 +107,12 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
   `recruitment-email`; adopted ChatGPT's `supabase.functions.invoke()` calling
   pattern (more reliable than the original hand-built `fetch()`).
 - Created this changelog file.
+
+### 2026-09-01 — Claude
+- **Fixed grammar** in the browser tab title ChatGPT set earlier that day. Final:
+  "Apply for Your Desired Job — SANKALP GROUP" (was "Apply Your Desigr Job
+  (Application / Career Section) - Sankalp Group" — had both a typo and a
+  grammar issue). No Supabase changes.
 
 ### 2026-09-01 — ChatGPT (reconstructed from git commits, not directly observed)
 - Built interview-reschedule email notifications: detected reschedule vs
