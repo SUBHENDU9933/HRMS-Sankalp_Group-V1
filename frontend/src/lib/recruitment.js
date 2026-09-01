@@ -133,18 +133,11 @@ export async function markConverted(application_id, employee_id) {
 /* ---------------- email (best-effort, never blocks status change) ---------------- */
 export async function sendStatusEmail(application_id, kind, force = false) {
   try {
-    const isReschedule = kind === "interview_rescheduled";
-    const functionName = isReschedule ? "recruitment-email-rescheduled" : "recruitment-email";
-
-    // Use Supabase's Functions client instead of a hand-built fetch URL. This
-    // guarantees the call is made against the same Supabase project/config used
-    // by the app and automatically forwards the current authenticated JWT.
-    // The reschedule function intentionally receives only application_id + force.
-    const payload = isReschedule
-      ? { application_id, force: true }
-      : { application_id, kind, force };
-    const { data, error } = await supabase.functions.invoke(functionName, {
-      body: payload,
+    // Reschedule notifications should always go out (each reschedule is new
+    // information the candidate needs), regardless of the idempotency guard.
+    const effectiveForce = force || kind === "interview_rescheduled";
+    const { data, error } = await supabase.functions.invoke("recruitment-email", {
+      body: { application_id, kind, force: effectiveForce },
     });
     if (error) throw error;
     return data || { ok: true };
