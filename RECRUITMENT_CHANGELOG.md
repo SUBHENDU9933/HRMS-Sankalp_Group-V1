@@ -57,19 +57,15 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 - `components/PhotoCapture.jsx`, `components/LocationMapTile.jsx` — shared UI
 
 ### Recruitment Dashboard
-- `/recruitment` is now a premium **Recruitment Command Center** using live production data only.
-- Management view includes KPI cards, status distribution, 30-day application trend, top positions,
-  Today action priorities, upcoming interviews, recent status-history activity, advanced filters,
-  latest applications, refresh, responsive UI, status filtering, application detail/email actions,
-  and CSV export of the current filtered list.
-- **Today • Action Required** highlights real exception queues: overdue interviews, shortlisted
-  candidates without an interview, interviewed candidates awaiting a decision, and selected
-  candidates awaiting joining. Clicking an item applies the relevant live status filter.
-- **Hiring Snapshot** is clickable by status and uses the live status distribution.
-- **Top Positions** is driven by live application counts grouped by current job opening.
-- The aggregate RPC returns a conversion rate plus on-hold/selected-pending-joining/overdue metrics
-  so management can see where the pipeline needs attention without creating a second workflow.
+- `/recruitment` is a premium **Recruitment Command Center** using live production data only.
+- Management view includes clickable KPI cards for Total Applications, New, Shortlisted, Interviews Scheduled, and Selected/Hired.
+- **Upcoming Interviews** has clickable candidate rows plus a **View all** action that filters the application queue to upcoming interviews.
+- **Latest Applications** initially shows 10 records per page, with Previous/Next pagination for older applications.
+- Latest Applications supports search across candidate name, email, phone, application number, and position; status and position filters; interview filters (today/upcoming/no interview); applied-date range filters; CSV export; clear-all filters; multi-select; bulk status changes; automated email actions where a matching recruitment email template exists; and WhatsApp message actions using the existing manual WhatsApp generator.
+- Bulk status changes use the existing `change_application_status()` RPC for every selected application, preserving the normal audit/history workflow. Interview Scheduled requires a date/time, and Joining Confirmed requires a joining date.
+- Selected/Hired KPI/filter groups `selected` and `joining` applications so the KPI is directly actionable.
 - Recent Activity reuses `application_status_history`; no activity table was created.
+- No new Supabase tables, columns, RPCs, or Edge Functions were added for this dashboard pass.
 
 ### Brand assets
 - Logo: `https://emp.sankalpdesign.com/sankalp-group-logo-email.png`
@@ -83,6 +79,19 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+### 2026-09-02 — ChatGPT
+- **Made the Recruitment Command Center fully actionable from the dashboard.**
+- Made all five top KPI cards clickable so management can immediately open the corresponding application queue.
+- Made Upcoming Interviews candidate rows clickable and added a View All action that opens the full upcoming-interview queue.
+- Rebuilt Latest Applications as a real working queue: 10 records per page initially, older records available through pagination, plus status/position/interview/date/search filters and CSV export.
+- Added multi-select checkboxes and a bulk-action toolbar for status change, email, and WhatsApp.
+- Added a bulk status dialog with interview date/time and joining-date requirements where needed; each status update still uses the existing `change_application_status()` RPC and audit history.
+- Added per-candidate automated email and WhatsApp actions using the existing recruitment email sender and manual WhatsApp generator.
+- Added a Selected/Hired filter grouping `selected` + `joining` so that KPI is directly actionable.
+- Changed dashboard-side application searching to include position/title as well as candidate/contact/application reference fields.
+- **Supabase:** no schema/RPC/Edge Function changes.
+- **Git commits:** `9329c1ff7ab9f061f93ecd1d2f8ac1b4d60d9f0f` (dashboard) and `59a55c50bd812f304daeafbd4854ecc09f790c10` (data-access search/filter support).
+
 ### 2026-09-02 — ChatGPT
 - **Expanded the Recruitment Command Center into a management-intelligence view.**
 - Added real action-priority queues for overdue interviews, shortlisted candidates waiting for scheduling, interviewed candidates waiting for a decision, and selected candidates waiting for joining.
