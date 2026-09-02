@@ -80,6 +80,11 @@ export async function listApplications({ q = "", status = "", job_opening_id = "
   const rows = thr(await query);
   return rows.map(r => ({ ...r, job_title: r.job_opening?.title, interviewer_name: r.interviewer_employee?.name }));
 }
+
+export async function getRecruitmentDashboardStats() {
+  return thr(await supabase.rpc("get_recruitment_dashboard_stats"));
+}
+
 export async function getApplication(id) {
   const r = thr(await supabase.from("job_applications")
     .select("*, job_opening:job_openings(title), interviewer_employee:employees!job_applications_interviewer_fkey(name)")
