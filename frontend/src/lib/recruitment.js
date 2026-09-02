@@ -74,7 +74,8 @@ export async function listApplications({ q = "", status = "", job_opening_id = "
   let query = supabase.from("job_applications")
     .select("*, job_opening:job_openings(title), interviewer_employee:employees!job_applications_interviewer_fkey(name)")
     .order("applied_at", { ascending: false });
-  if (status) query = query.eq("status", status);
+  if (status === "selected_hired") query = query.in("status", ["selected", "joining"]);
+  else if (status) query = query.eq("status", status);
   if (job_opening_id) query = query.eq("job_opening_id", job_opening_id);
   if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,application_number.ilike.%${q}%`);
   const rows = thr(await query);
