@@ -1,376 +1,64 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Activity, ArrowRight, Briefcase, CalendarDays, CheckCircle2, ChevronDown,
-  Clock3, Download, ExternalLink, Filter, Mail, RefreshCw, Search, Sparkles,
-  UserCheck, Users, XCircle, Eye, MoreVertical, TrendingUp, UserRound,
+  Activity, AlertTriangle, ArrowRight, Briefcase, CalendarDays, CheckCircle2,
+  Clock3, Download, ExternalLink, Mail, RefreshCw, Search, Sparkles, Target,
+  TrendingUp, UserCheck, UserRound, Users, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getRecruitmentDashboardStats, listApplications, listJobOpenings } from "@/lib/recruitment";
 
 const ROYAL = "#0D47A1";
 const ORANGE = "#FF6A00";
-
-const STATUS_LABEL = {
-  new: "New",
-  shortlisted: "Shortlisted",
-  interview_scheduled: "Interview Scheduled",
-  interviewed: "Interviewed",
-  selected: "Selected",
-  rejected: "Rejected",
-  on_hold: "On Hold",
-  joining: "Joining Confirmed",
-};
-
-const STATUS_COLOR = {
-  new: "#1976D2",
-  shortlisted: ORANGE,
-  interview_scheduled: "#7C4DFF",
-  interviewed: "#0284C7",
-  selected: "#10B981",
-  rejected: "#64748B",
-  on_hold: "#94A3B8",
-  joining: "#059669",
-};
-
-const STATUS_ICON = {
-  new: Users,
-  shortlisted: UserCheck,
-  interview_scheduled: CalendarDays,
-  interviewed: UserRound,
-  selected: CheckCircle2,
-  rejected: XCircle,
-  on_hold: Clock3,
-  joining: CheckCircle2,
-};
-
-const fmtDate = (value) => value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-const fmtTime = (value) => value ? new Date(`1970-01-01T${value}`).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "Time not set";
+const STATUS_LABEL = { new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled", interviewed: "Interviewed", selected: "Selected", rejected: "Rejected", on_hold: "On Hold", joining: "Joining Confirmed" };
+const STATUS_COLOR = { new: "#1976D2", shortlisted: ORANGE, interview_scheduled: "#7C4DFF", interviewed: "#0284C7", selected: "#10B981", rejected: "#64748B", on_hold: "#94A3B8", joining: "#059669" };
+const STATUS_ICON = { new: Users, shortlisted: UserCheck, interview_scheduled: CalendarDays, interviewed: UserRound, selected: CheckCircle2, rejected: XCircle, on_hold: Clock3, joining: CheckCircle2 };
+const fmtDate = v => v ? new Date(v).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const fmtTime = v => v ? new Date(`1970-01-01T${v}`).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "Time not set";
 const initials = (name = "?") => name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join("").toUpperCase();
-const relativeTime = (value) => {
-  if (!value) return "—";
-  const diff = Math.max(0, Date.now() - new Date(value).getTime());
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-};
+const relativeTime = v => { if (!v) return "—"; const mins = Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 60000)); if (mins < 1) return "Just now"; if (mins < 60) return `${mins} min ago`; const h = Math.floor(mins / 60); if (h < 24) return `${h} hr ago`; const d = Math.floor(h / 24); return `${d} day${d === 1 ? "" : "s"} ago`; };
 
-function Card({ children, className = "", ...props }) {
-  return <section className={`bg-white border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.045)] ${className}`} {...props}>{children}</section>;
-}
-
-function SectionTitle({ title, action }) {
-  return <div className="flex items-center justify-between gap-3 mb-4">
-    <h2 className="text-sm md:text-base font-extrabold text-slate-900 tracking-tight">{title}</h2>
-    {action}
-  </div>;
-}
-
-function Sparkline({ points = [], stroke = ROYAL }) {
-  if (!points.length) return <div className="h-8" />;
-  const max = Math.max(...points.map(p => Number(p) || 0), 1);
-  const min = Math.min(...points.map(p => Number(p) || 0), 0);
-  const range = Math.max(max - min, 1);
-  const coords = points.map((p, i) => `${(i / Math.max(points.length - 1, 1)) * 100},${28 - (((Number(p) || 0) - min) / range) * 22}`).join(" ");
-  return <svg viewBox="0 0 100 32" className="w-full h-8 overflow-visible" preserveAspectRatio="none" aria-hidden="true">
-    <polyline points={coords} fill="none" stroke={stroke} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-  </svg>;
-}
-
-function KpiCard({ title, value, icon: Icon, tone, note, points }) {
-  return <Card className="p-4 min-w-0 overflow-hidden relative">
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${tone}12`, color: tone }}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-xs font-semibold text-slate-500 truncate">{title}</div>
-          <div className="text-2xl font-black text-slate-900 mt-0.5 tabular-nums">{value ?? "—"}</div>
-        </div>
-      </div>
-    </div>
-    {note && <div className="text-[11px] text-slate-500 mt-2">{note}</div>}
-    <div className="mt-2 -mx-1"><Sparkline points={points} stroke={tone} /></div>
-  </Card>;
-}
-
-function StatusBadge({ status }) {
-  const color = STATUS_COLOR[status] || "#64748B";
-  return <span className="inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1.5 rounded-full whitespace-nowrap" style={{ color, background: `${color}13` }}>
-    <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-    {STATUS_LABEL[status] || status}
-  </span>;
-}
-
-function MiniBar({ value, total, color }) {
-  const pct = total ? Math.max(2, Math.round((value / total) * 100)) : 0;
-  return <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden w-full"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} /></div>;
-}
-
-function Donut({ data, total }) {
-  const items = Object.entries(data).filter(([, value]) => Number(value) > 0);
-  let offset = 0;
-  const circumference = 2 * Math.PI * 42;
-  return <div className="relative w-44 h-44 shrink-0">
-    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-      <circle cx="50" cy="50" r="42" fill="none" stroke="#EEF2F7" strokeWidth="11" />
-      {items.map(([status, value]) => {
-        const len = (Number(value) / Math.max(total, 1)) * circumference;
-        const dash = `${len} ${circumference - len}`;
-        const node = <circle key={status} cx="50" cy="50" r="42" fill="none" stroke={STATUS_COLOR[status] || "#94A3B8"} strokeWidth="11" strokeDasharray={dash} strokeDashoffset={-offset} />;
-        offset += len;
-        return node;
-      })}
-    </svg>
-    <div className="absolute inset-0 flex flex-col items-center justify-center">
-      <div className="text-2xl font-black text-slate-900 tabular-nums">{total}</div>
-      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total</div>
-    </div>
-  </div>;
-}
-
-function TrendChart({ trends }) {
-  if (!trends?.length) return <div className="h-48 flex items-center justify-center text-sm text-slate-400">Not enough application history yet.</div>;
-  const values = trends.map(x => Number(x.count) || 0);
-  const max = Math.max(...values, 1);
-  const w = 620;
-  const h = 190;
-  const pad = 12;
-  const coords = values.map((v, i) => `${pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2)},${h - pad - (v / max) * (h - pad * 2)}`).join(" ");
-  const area = `${pad},${h - pad} ${coords} ${w - pad},${h - pad}`;
-  return <div className="w-full overflow-hidden">
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48" preserveAspectRatio="none" role="img" aria-label="Applications over the last 30 days">
-      {[0, .25, .5, .75, 1].map((n) => <line key={n} x1={pad} x2={w - pad} y1={h - pad - n * (h - pad * 2)} y2={h - pad - n * (h - pad * 2)} stroke="#E2E8F0" strokeWidth="1" />)}
-      <polygon points={area} fill="#0D47A1" opacity="0.07" />
-      <polyline points={coords} fill="none" stroke={ROYAL} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-    <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-      <span>{fmtDate(trends[0]?.day)}</span><span>{fmtDate(trends[Math.floor(trends.length / 2)]?.day)}</span><span>{fmtDate(trends[trends.length - 1]?.day)}</span>
-    </div>
-  </div>;
-}
+function Card({ children, className = "" }) { return <section className={`bg-white border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.045)] ${className}`}>{children}</section>; }
+function SectionTitle({ title, action }) { return <div className="flex items-center justify-between gap-3 mb-4"><h2 className="text-sm md:text-base font-extrabold text-slate-900 tracking-tight">{title}</h2>{action}</div>; }
+function StatusBadge({ status }) { const color = STATUS_COLOR[status] || "#64748B"; return <span className="inline-flex items-center gap-1.5 text-[10px] md:text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1.5 rounded-full whitespace-nowrap" style={{ color, background: `${color}13` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />{STATUS_LABEL[status] || status}</span>; }
+function Sparkline({ points = [], stroke = ROYAL }) { if (!points.length) return <div className="h-7" />; const max = Math.max(...points.map(Number), 1), min = Math.min(...points.map(Number), 0), range = Math.max(max - min, 1); const coords = points.map((p, i) => `${(i / Math.max(points.length - 1, 1)) * 100},${27 - (((Number(p) || 0) - min) / range) * 21}`).join(" "); return <svg viewBox="0 0 100 32" className="w-full h-7" preserveAspectRatio="none" aria-hidden="true"><polyline points={coords} fill="none" stroke={stroke} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg>; }
+function KpiCard({ title, value, icon: Icon, tone, note, points }) { return <Card className="p-4 overflow-hidden"><div className="flex items-start gap-3"><div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${tone}12`, color: tone }}><Icon className="w-5 h-5" /></div><div className="min-w-0 flex-1"><div className="text-xs font-semibold text-slate-500 truncate">{title}</div><div className="text-2xl font-black text-slate-900 mt-0.5 tabular-nums">{value ?? "—"}</div></div></div>{note && <div className="text-[11px] text-slate-500 mt-2">{note}</div>}<div className="mt-2 -mx-1"><Sparkline points={points} stroke={tone} /></div></Card>; }
+function Donut({ data, total }) { const items = Object.entries(data).filter(([, v]) => Number(v) > 0); let offset = 0; const circumference = 2 * Math.PI * 42; return <div className="relative w-40 h-40 shrink-0"><svg viewBox="0 0 100 100" className="w-full h-full -rotate-90"><circle cx="50" cy="50" r="42" fill="none" stroke="#EEF2F7" strokeWidth="11" />{items.map(([s, v]) => { const len = Number(v) / Math.max(total, 1) * circumference; const node = <circle key={s} cx="50" cy="50" r="42" fill="none" stroke={STATUS_COLOR[s] || "#94A3B8"} strokeWidth="11" strokeDasharray={`${len} ${circumference - len}`} strokeDashoffset={-offset} />; offset += len; return node; })}</svg><div className="absolute inset-0 flex flex-col items-center justify-center"><div className="text-2xl font-black text-slate-900">{total}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Applications</div></div></div>; }
+function TrendChart({ trends }) { if (!trends?.length) return <div className="h-48 flex items-center justify-center text-sm text-slate-400">No application history in the last 30 days.</div>; const values = trends.map(x => Number(x.count) || 0), max = Math.max(...values, 1), w = 620, h = 190, pad = 12; const coords = values.map((v, i) => `${pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2)},${h - pad - (v / max) * (h - pad * 2)}`).join(" "); return <div className="w-full overflow-hidden"><svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48" preserveAspectRatio="none" role="img" aria-label="Applications over the last 30 days">{[0,.25,.5,.75,1].map(n => <line key={n} x1={pad} x2={w-pad} y1={h-pad-n*(h-pad*2)} y2={h-pad-n*(h-pad*2)} stroke="#E2E8F0" strokeWidth="1" />)}<polygon points={`${pad},${h-pad} ${coords} ${w-pad},${h-pad}`} fill="#0D47A1" opacity="0.07" /><polyline points={coords} fill="none" stroke={ROYAL} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg><div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>{fmtDate(trends[0]?.day)}</span><span>{fmtDate(trends[Math.floor(trends.length/2)]?.day)}</span><span>{fmtDate(trends[trends.length-1]?.day)}</span></div></div>; }
+function ActionRow({ icon: Icon, tone, title, text, count, onClick }) { return <button type="button" onClick={onClick} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left"><div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tone}12`, color: tone }}><Icon className="w-4 h-4" /></div><div className="min-w-0 flex-1"><div className="text-xs font-extrabold text-slate-800">{title}</div><div className="text-[11px] text-slate-500 mt-0.5">{text}</div></div><div className="flex items-center gap-2 shrink-0"><span className="text-lg font-black tabular-nums" style={{ color: tone }}>{count}</span><ArrowRight className="w-4 h-4 text-slate-300" /></div></button>; }
 
 export default function Recruitment() {
-  const [rows, setRows] = useState([]);
-  const [openings, setOpenings] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  const [jobOpeningId, setJobOpeningId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  const loadStats = async () => {
-    setStatsLoading(true);
-    try { setStats(await getRecruitmentDashboardStats()); }
-    catch (e) { toast.error(e.message || "Failed to load recruitment dashboard"); }
-    finally { setStatsLoading(false); }
-  };
-
-  const load = async () => {
-    setLoading(true);
-    try { setRows(await listApplications({ q, status, job_opening_id: jobOpeningId })); }
-    catch (e) { toast.error(e.message || "Failed to load applications"); }
-    finally { setLoading(false); }
-  };
-
+  const [rows, setRows] = useState([]), [openings, setOpenings] = useState([]), [stats, setStats] = useState(null);
+  const [q, setQ] = useState(""), [status, setStatus] = useState(""), [jobOpeningId, setJobOpeningId] = useState("");
+  const [loading, setLoading] = useState(true), [statsLoading, setStatsLoading] = useState(true);
+  const loadStats = async () => { setStatsLoading(true); try { setStats(await getRecruitmentDashboardStats()); } catch (e) { toast.error(e.message || "Failed to load recruitment dashboard"); } finally { setStatsLoading(false); } };
+  const load = async () => { setLoading(true); try { setRows(await listApplications({ q, status, job_opening_id: jobOpeningId })); } catch (e) { toast.error(e.message || "Failed to load applications"); } finally { setLoading(false); } };
   useEffect(() => { listJobOpenings().then(setOpenings).catch(() => {}); loadStats(); }, []); // eslint-disable-line
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [q, status, jobOpeningId]); // eslint-disable-line
 
-  const kpis = stats?.kpis || {};
-  const statusCounts = stats?.status_counts || {};
-  const trends = stats?.trends || [];
-  const today = stats?.today || {};
-  const upcoming = stats?.upcoming_interviews || [];
-  const activity = stats?.recent_activity || [];
-  const total = Number(kpis.total || 0);
+  const kpis = stats?.kpis || {}, counts = stats?.status_counts || {}, today = stats?.today || {}, trends = stats?.trends || [], upcoming = stats?.upcoming_interviews || [], activity = stats?.recent_activity || [], positionCounts = stats?.position_counts || [];
+  const total = Number(kpis.total || 0); const trendPoints = useMemo(() => trends.map(x => Number(x.count) || 0), [trends]); const kpiTrend = trendPoints.length ? trendPoints.slice(-12) : [0,0,0,0];
+  const actionItems = [
+    { icon: AlertTriangle, tone: "#DC2626", title: "Interviews overdue", text: "Scheduled interviews before today need attention", count: Number(today.overdue_interviews || 0), status: "interview_scheduled" },
+    { icon: UserCheck, tone: ORANGE, title: "Shortlisted without interview", text: "Candidates waiting for an interview slot", count: Number(today.shortlisted_not_scheduled || 0), status: "shortlisted" },
+    { icon: Target, tone: "#0284C7", title: "Interviewed — decision pending", text: "Interviewed candidates awaiting an outcome", count: Number(today.interviewed_pending_decision || 0), status: "interviewed" },
+    { icon: Clock3, tone: "#7C4DFF", title: "Selected — joining pending", text: "Selected candidates not yet moved to joining", count: Number(today.selected_pending_joining || 0), status: "selected" },
+  ].filter(x => x.count > 0);
+  const exportRows = () => { if (!rows.length) { toast.info("No applications available for the current filter"); return; } const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`; const csv = [["Application No","Candidate","Email","Phone","Position","Status","Applied On","Interview Date","Interview Time"], ...rows.map(r => [r.application_number,r.name,r.email,r.phone,r.job_title,STATUS_LABEL[r.status]||r.status,r.applied_at,r.interview_date,r.interview_time])].map(r => r.map(esc).join(",")).join("\n"); const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"})); const a=document.createElement("a"); a.href=url; a.download="sankalp-recruitment-applications.csv"; a.click(); URL.revokeObjectURL(url); toast.success(`Exported ${rows.length} application${rows.length===1?"":"s"}`); };
 
-  const trendPoints = useMemo(() => trends.map(x => Number(x.count) || 0), [trends]);
-  const kpiTrend = trendPoints.length ? trendPoints.slice(-12) : [0, 0, 0, 0];
+  return <div className="sk-page bg-slate-50/40 min-h-full">
+    <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4"><div><div className="inline-flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400 mb-2"><Sparkles className="w-3.5 h-3.5" style={{color:ORANGE}} /> Sankalp HRMS • Recruitment</div><h1 className="font-heading text-3xl md:text-4xl font-black tracking-tight" style={{color:ROYAL}}>Recruitment Command Center</h1><p className="text-sm text-slate-500 mt-1">Live pipeline, action priorities, interview schedule and hiring intelligence.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => {load();loadStats();}} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border bg-white text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"><RefreshCw className={`w-4 h-4 ${statsLoading?"animate-spin":""}`} /> Refresh</button><Link to="/recruitment/openings" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-white text-sm font-bold shadow-sm hover:bg-slate-50" style={{borderColor:`${ROYAL}25`,color:ROYAL}}><Briefcase className="w-4 h-4" /> Job Openings</Link><a href="/apply" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm" style={{background:ORANGE}}><ExternalLink className="w-4 h-4" /> Public Form</a></div></div>
 
-  const visibleRows = rows.slice(0, 8);
+    <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mt-5"><KpiCard title="Total Applications" value={kpis.total} icon={Users} tone={ROYAL} note="All submitted applications" points={kpiTrend}/><KpiCard title="New Applications" value={kpis.new_count} icon={Sparkles} tone="#1976D2" note="Awaiting first review" points={kpiTrend}/><KpiCard title="Shortlisted" value={kpis.shortlisted} icon={UserCheck} tone={ORANGE} note="Ready for interview" points={kpiTrend}/><KpiCard title="Interviews Scheduled" value={kpis.interviews_scheduled} icon={CalendarDays} tone="#7C4DFF" note={`${Number(today.interviews_today||0)} scheduled today`} points={kpiTrend}/><KpiCard title="Selected / Hired" value={kpis.selected_hired} icon={CheckCircle2} tone="#10B981" note={`${Number(today.conversion_rate||0)}% conversion rate`} points={kpiTrend}/></div>
 
-  const exportRows = () => {
-    if (!rows.length) { toast.info("No applications available for the current filter"); return; }
-    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [
-      ["Application No", "Candidate", "Email", "Phone", "Position", "Status", "Applied On", "Interview Date", "Interview Time"],
-      ...rows.map(r => [r.application_number, r.name, r.email, r.phone, r.job_title, STATUS_LABEL[r.status] || r.status, r.applied_at, r.interview_date, r.interview_time]),
-    ].map(row => row.map(esc).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "sankalp-recruitment-applications.csv"; a.click(); URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} application${rows.length === 1 ? "" : "s"}`);
-  };
+    <Card className="mt-4 p-3 md:p-4"><div className="flex flex-col lg:flex-row gap-2.5"><div className="relative flex-1"><Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" /><input className="sk-input pl-10 w-full bg-slate-50/70 border-slate-200" placeholder="Search name, email, phone, position or application ref…" value={q} onChange={e=>setQ(e.target.value)} /></div><div className="flex flex-col sm:flex-row gap-2.5"><select className="sk-input bg-slate-50/70 border-slate-200" value={status} onChange={e=>setStatus(e.target.value)} aria-label="Filter by status"><option value="">All statuses</option>{Object.entries(STATUS_LABEL).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select><select className="sk-input bg-slate-50/70 border-slate-200 sm:max-w-[250px]" value={jobOpeningId} onChange={e=>setJobOpeningId(e.target.value)} aria-label="Filter by position"><option value="">All positions</option>{openings.map(o=><option key={o.id} value={o.id}>{o.title}</option>)}</select><button type="button" onClick={exportRows} className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="w-4 h-4" /> Export</button></div></div></Card>
 
-  return (
-    <div className="sk-page bg-slate-50/40 min-h-full">
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400 mb-2">
-            <Sparkles className="w-3.5 h-3.5" style={{ color: ORANGE }} /> Sankalp HRMS • Recruitment
-          </div>
-          <h1 className="font-heading text-3xl md:text-4xl font-black tracking-tight" style={{ color: ROYAL }}>Recruitment Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage applications, track candidate progress &amp; hire the best talent.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/recruitment/openings" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-white text-sm font-bold shadow-sm hover:bg-slate-50 transition" style={{ borderColor: `${ROYAL}25`, color: ROYAL }}><Briefcase className="w-4 h-4" /> Job Openings</Link>
-          <a href="/apply" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:brightness-105 transition" style={{ background: ORANGE }}><ExternalLink className="w-4 h-4" /> Public Form</a>
-        </div>
-      </div>
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mt-4"><Card className="xl:col-span-2 p-4 md:p-5"><SectionTitle title="Today • Action Required" action={<span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Live priorities</span>}/>{actionItems.length?<div className="grid md:grid-cols-2 gap-1">{actionItems.map(item=><ActionRow key={item.title} {...item} onClick={()=>setStatus(item.status)}/>)}</div>:<div className="rounded-xl border border-dashed border-slate-200 p-6 text-center"><CheckCircle2 className="w-7 h-7 mx-auto text-emerald-500"/><div className="text-sm font-extrabold text-slate-800 mt-2">No urgent pipeline actions</div><div className="text-xs text-slate-500 mt-1">Your recruitment queue has no current exception items.</div></div>}</Card><Card className="p-4 md:p-5"><SectionTitle title="Hiring Snapshot"/><div className="flex items-center gap-4"><Donut data={counts} total={total}/><div className="space-y-2 min-w-0 flex-1">{["new","shortlisted","interview_scheduled","interviewed","selected","joining"].map(s=>{const Icon=STATUS_ICON[s];return <button type="button" key={s} onClick={()=>setStatus(s)} className="w-full flex items-center gap-2 text-left"><Icon className="w-3.5 h-3.5 shrink-0" style={{color:STATUS_COLOR[s]}}/><span className="text-[11px] text-slate-600 truncate flex-1">{STATUS_LABEL[s]}</span><span className="text-xs font-black text-slate-800">{Number(counts[s]||0)}</span></button>})}</div></div></Card></div>
 
-      <Card className="mt-5 p-3 md:p-4">
-        <div className="flex flex-col lg:flex-row gap-2.5">
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="sk-input pl-10 w-full bg-slate-50/70 border-slate-200" placeholder="Search name, email, phone, position or application ref…" value={q} onChange={e => setQ(e.target.value)} />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <select className="sk-input bg-slate-50/70 border-slate-200" value={status} onChange={e => setStatus(e.target.value)} aria-label="Filter by status">
-              <option value="">All statuses</option>
-              {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <select className="sk-input bg-slate-50/70 border-slate-200 max-w-full sm:max-w-[250px]" value={jobOpeningId} onChange={e => setJobOpeningId(e.target.value)} aria-label="Filter by position">
-              <option value="">All positions</option>
-              {openings.map(o => <option key={o.id} value={o.id}>{o.title}</option>)}
-            </select>
-            <button type="button" onClick={() => { load(); loadStats(); }} className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50" title="Refresh">
-              <RefreshCw className={`w-4 h-4 ${loading || statsLoading ? "animate-spin" : ""}`} /> <span className="sm:hidden">Refresh</span>
-            </button>
-          </div>
-        </div>
-      </Card>
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mt-4"><Card className="xl:col-span-2 p-4 md:p-5"><SectionTitle title="Application Trend • Last 30 Days" action={<span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400"><TrendingUp className="w-3.5 h-3.5"/> Applications received</span>}/><TrendChart trends={trends}/></Card><Card className="p-4 md:p-5"><SectionTitle title="Top Positions"/><div className="space-y-3">{positionCounts.length?positionCounts.map((p,i)=><button type="button" key={p.title} onClick={()=>{const found=openings.find(o=>o.title===p.title);if(found)setJobOpeningId(found.id);}} className="w-full text-left"><div className="flex items-center justify-between gap-3 mb-1"><span className="text-xs font-bold text-slate-700 truncate">{p.title}</span><span className="text-xs font-black text-slate-900">{p.count}</span></div><div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{width:`${Math.max(4,Math.round(Number(p.count)/Math.max(total,1)*100))}%`,background:i===0?ORANGE:ROYAL}}/></div></button>):<div className="text-sm text-slate-400">No position data yet.</div>}</div></Card></div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-4">
-        <KpiCard title="Total Applications" value={statsLoading ? "…" : kpis.total} icon={Users} tone="#1976D2" note="All submitted applications" points={kpiTrend} />
-        <KpiCard title="New Applications" value={statsLoading ? "…" : kpis.new_count} icon={Briefcase} tone="#10B981" note="Currently awaiting review" points={kpiTrend} />
-        <KpiCard title="Shortlisted" value={statsLoading ? "…" : kpis.shortlisted} icon={UserCheck} tone="#F59E0B" note="Ready for next step" points={kpiTrend} />
-        <KpiCard title="Interviews Scheduled" value={statsLoading ? "…" : kpis.interviews_scheduled} icon={CalendarDays} tone="#7C4DFF" note="Currently scheduled" points={kpiTrend} />
-        <KpiCard title="Selected / Hired" value={statsLoading ? "…" : kpis.selected_hired} icon={CheckCircle2} tone="#059669" note="Selected, joining or converted" points={kpiTrend} />
-      </div>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4"><Card className="p-4 md:p-5"><SectionTitle title="Upcoming Interviews" action={<button type="button" onClick={()=>setStatus("interview_scheduled")} className="text-xs font-bold" style={{color:ROYAL}}>View all <ArrowRight className="inline w-3.5 h-3.5"/></button>}/>{upcoming.length?<div className="divide-y divide-slate-100">{upcoming.map(a=><Link to={`/recruitment/${a.id}`} key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 hover:bg-slate-50 rounded-lg px-1"><div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center shrink-0" style={{background:"#7C4DFF12",color:"#7C4DFF"}}><CalendarDays className="w-4 h-4"/><span className="text-[8px] font-black">{a.interview_date?new Date(a.interview_date).getDate():"—"}</span></div><div className="min-w-0 flex-1"><div className="text-xs font-extrabold text-slate-800 truncate">{a.name}</div><div className="text-[11px] text-slate-500 truncate">{a.job_title||"Position"} • {fmtDate(a.interview_date)} • {fmtTime(a.interview_time)}</div></div><StatusBadge status={a.status}/></Link>)}</div>:<div className="py-7 text-center text-sm text-slate-400">No upcoming interviews scheduled.</div>}</Card><Card className="p-4 md:p-5"><SectionTitle title="Recent Activity" action={<Activity className="w-4 h-4 text-slate-300"/>}/>{activity.length?<div className="divide-y divide-slate-100">{activity.slice(0,8).map(a=><Link to={`/recruitment/${a.id}`} key={a.event_type} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0 hover:bg-slate-50 rounded-lg px-1"><div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{background:`${STATUS_COLOR[a.new_status]||ROYAL}12`,color:STATUS_COLOR[a.new_status]||ROYAL}}><Activity className="w-4 h-4"/></div><div className="min-w-0 flex-1"><div className="text-xs font-extrabold text-slate-800 truncate">{a.name} <span className="font-mono font-semibold text-slate-400">{a.application_number}</span></div><div className="text-[11px] text-slate-500 truncate">{STATUS_LABEL[a.old_status]||a.old_status||"Application"} → {STATUS_LABEL[a.new_status]||a.new_status} • {a.job_title||"Position"}</div><div className="text-[10px] text-slate-400 mt-0.5">{a.actor_name||"System"} • {relativeTime(a.event_at)}</div></div></Link>)}</div>:<div className="py-7 text-center text-sm text-slate-400">No recent activity yet.</div>}</Card></div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] gap-4 mt-4">
-        <div className="space-y-4 min-w-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="p-5">
-              <SectionTitle title="Applications by Status" action={<select className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 font-semibold text-slate-600 bg-white" defaultValue="30"><option value="30">Current pipeline</option></select>} />
-              <div className="flex flex-col sm:flex-row items-center gap-5">
-                <Donut data={statusCounts} total={total} />
-                <div className="flex-1 w-full space-y-2.5">
-                  {Object.entries(STATUS_LABEL).map(([key, label]) => {
-                    const value = Number(statusCounts[key] || 0);
-                    const Icon = STATUS_ICON[key] || Activity;
-                    return <button type="button" key={key} onClick={() => setStatus(status === key ? "" : key)} className={`w-full text-left group ${status === key ? "opacity-100" : ""}`}>
-                      <div className="flex items-center justify-between gap-2 text-xs mb-1.5">
-                        <span className="flex items-center gap-2 font-semibold text-slate-600"><Icon className="w-3.5 h-3.5" style={{ color: STATUS_COLOR[key] }} />{label}</span>
-                        <span className="font-bold text-slate-800 tabular-nums">{value}</span>
-                      </div>
-                      <MiniBar value={value} total={total} color={STATUS_COLOR[key]} />
-                    </button>;
-                  })}
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-5">
-              <SectionTitle title="Applications Over Time" action={<span className="text-xs font-bold text-slate-400">Last 30 days</span>} />
-              <TrendChart trends={trends} />
-              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500"><TrendingUp className="w-3.5 h-3.5" style={{ color: ROYAL }} /> Live application volume from submitted records</div>
-            </Card>
-          </div>
-
-          <Card className="p-5">
-            <SectionTitle title="Recruitment Pipeline" action={<span className="text-[11px] font-semibold text-slate-400">Current candidate distribution</span>} />
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
-              {Object.entries(STATUS_LABEL).map(([key, label]) => {
-                const value = Number(statusCounts[key] || 0);
-                return <button type="button" key={key} onClick={() => setStatus(status === key ? "" : key)} className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 ${status === key ? "border-slate-400 shadow-sm" : "border-slate-100 bg-slate-50/50"}`}>
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2" style={{ background: `${STATUS_COLOR[key]}13`, color: STATUS_COLOR[key] }}><span className="w-2 h-2 rounded-full" style={{ background: STATUS_COLOR[key] }} /></div>
-                  <div className="text-lg font-black text-slate-900 tabular-nums">{value}</div>
-                  <div className="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5">{label}</div>
-                </button>;
-              })}
-            </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <div className="p-5 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <SectionTitle title="Latest Applications" action={null} />
-              <div className="flex items-center gap-2 -mt-3 sm:mt-0">
-                <button type="button" onClick={exportRows} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50"><Download className="w-3.5 h-3.5" /> Export</button>
-                <button type="button" onClick={() => { setQ(""); setStatus(""); setJobOpeningId(""); }} className="text-xs font-bold" style={{ color: ROYAL }}>Clear filters</button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-sm">
-                <thead><tr className="border-y border-slate-100 bg-slate-50/60 text-[10px] uppercase tracking-wider text-slate-400">
-                  <th className="text-left font-bold px-5 py-3">Candidate</th><th className="text-left font-bold px-3 py-3">Position</th><th className="text-left font-bold px-3 py-3">Status</th><th className="text-left font-bold px-3 py-3">Applied</th><th className="text-left font-bold px-3 py-3">Interview</th><th className="text-right font-bold px-5 py-3">Actions</th>
-                </tr></thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">Loading applications…</td></tr> : visibleRows.length === 0 ? <tr><td colSpan="6" className="p-10 text-center text-slate-400">No applications match the current filters.</td></tr> : visibleRows.map(r => <tr key={r.id} className="hover:bg-slate-50/70 transition">
-                    <td className="px-5 py-3.5"><div className="flex items-center gap-3 min-w-0"><div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-black text-white" style={{ background: STATUS_COLOR[r.status] || ROYAL }}>{initials(r.name)}</div><div className="min-w-0"><Link to={`/recruitment/${r.id}`} className="font-bold text-slate-800 hover:underline truncate block">{r.name}</Link><div className="text-[11px] text-slate-400 truncate">{r.email} • {r.phone}</div><div className="text-[10px] font-mono text-slate-300 mt-0.5">{r.application_number}</div></div></div></td>
-                    <td className="px-3 py-3.5 text-xs font-semibold text-slate-600 max-w-[180px]">{r.job_title || "—"}</td>
-                    <td className="px-3 py-3.5"><StatusBadge status={r.status} /></td>
-                    <td className="px-3 py-3.5 text-xs text-slate-500 whitespace-nowrap">{fmtDate(r.applied_at)}</td>
-                    <td className="px-3 py-3.5 text-xs text-slate-500 whitespace-nowrap">{r.interview_date ? <><div className="font-semibold text-slate-700">{fmtDate(r.interview_date)}</div><div>{fmtTime(r.interview_time)}</div></> : "—"}</td>
-                    <td className="px-5 py-3.5"><div className="flex justify-end gap-1.5"><Link to={`/recruitment/${r.id}`} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-700 hover:bg-blue-50" title="View"><Eye className="w-4 h-4" /></Link><a href={`mailto:${r.email}`} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:text-blue-700 hover:bg-blue-50" title="Email"><Mail className="w-4 h-4" /></a><button type="button" onClick={() => toast.info("Use Application Detail for more actions")} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50" title="More"><MoreVertical className="w-4 h-4" /></button></div></td>
-                  </tr>)}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between"><span className="text-xs text-slate-400">Showing {visibleRows.length} of {rows.length} filtered applications</span><Link to="/recruitment" className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: ROYAL }}>View all applications <ArrowRight className="w-3.5 h-3.5" /></Link></div>
-          </Card>
-        </div>
-
-        <aside className="space-y-4 min-w-0">
-          <Card className="p-5">
-            <SectionTitle title="TODAY — Intelligence" action={<Sparkles className="w-4 h-4" style={{ color: ORANGE }} />} />
-            <div className="space-y-1">
-              {[
-                { icon: CalendarDays, color: "#7C4DFF", value: today.interviews_today, label: "Interviews starting today", action: () => setStatus("interview_scheduled") },
-                { icon: Clock3, color: ORANGE, value: today.shortlisted_waiting, label: "Candidates waiting for action", action: () => setStatus("shortlisted") },
-                { icon: CheckCircle2, color: "#059669", value: today.interviewed_pending_decision, label: "Interviewed — decision pending", action: () => setStatus("interviewed") },
-                { icon: Briefcase, color: ROYAL, value: today.new_since_yesterday, label: "New applications since yesterday", action: () => setStatus("new") },
-                { icon: UserCheck, color: "#F59E0B", value: today.shortlisted_not_scheduled, label: "Shortlisted but not scheduled", action: () => setStatus("shortlisted") },
-              ].map((item, i) => <button type="button" key={i} onClick={item.action} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 text-left transition">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${item.color}12`, color: item.color }}><item.icon className="w-4 h-4" /></div>
-                <div className="min-w-0 flex-1"><div className="text-lg font-black text-slate-900 leading-none tabular-nums">{item.value ?? 0}</div><div className="text-[11px] text-slate-500 mt-1 leading-tight">{item.label}</div></div><ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-              </button>)}
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <SectionTitle title="Quick Actions" />
-            <div className="grid grid-cols-1 gap-2">
-              <Link to="/recruitment/openings" className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 text-blue-800 text-xs font-bold hover:bg-blue-100"><Briefcase className="w-4 h-4" /> Add / Manage Job Openings</Link>
-              <button type="button" onClick={() => { setStatus("shortlisted"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 p-3 rounded-xl bg-orange-50 text-orange-800 text-xs font-bold hover:bg-orange-100"><CalendarDays className="w-4 h-4" /> Schedule Interview Queue</button>
-              <button type="button" onClick={exportRows} className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100"><Download className="w-4 h-4" /> Export Current Applications</button>
-              <a href="/apply" target="_blank" rel="noreferrer" className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 text-slate-700 text-xs font-bold hover:bg-slate-100"><ExternalLink className="w-4 h-4" /> Open Public Application Form</a>
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <SectionTitle title="Upcoming Interviews" action={<button type="button" onClick={() => setStatus("interview_scheduled")} className="text-[11px] font-bold" style={{ color: ROYAL }}>View all →</button>} />
-            {upcoming.length === 0 ? <div className="py-6 text-center text-xs text-slate-400">No upcoming interviews scheduled.</div> : <div className="divide-y divide-slate-100">{upcoming.slice(0, 5).map(item => <Link to={`/recruitment/${item.id}`} key={item.id} className="flex gap-3 py-3 first:pt-0 last:pb-0 hover:bg-slate-50 rounded-lg transition">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#7C4DFF12", color: "#7C4DFF" }}><CalendarDays className="w-4 h-4" /></div>
-              <div className="min-w-0 flex-1"><div className="text-xs font-extrabold text-slate-800 truncate">{item.name}</div><div className="text-[10px] text-slate-500 truncate">{item.job_title || "Position"}</div><div className="text-[10px] font-semibold text-slate-400 mt-1">{fmtDate(item.interview_date)} • {fmtTime(item.interview_time)}</div></div>
-            </Link>)}</div>}
-          </Card>
-
-          <Card className="p-5">
-            <SectionTitle title="Recent Activity" action={<Activity className="w-4 h-4 text-slate-300" />} />
-            {activity.length === 0 ? <div className="py-6 text-center text-xs text-slate-400">No activity recorded yet.</div> : <div className="space-y-3">{activity.slice(0, 6).map(item => <Link to={`/recruitment/${item.application_number ? item.id : ""}`} key={`${item.event_type}-${item.id}`} className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0" style={{ color: ROYAL }}><Activity className="w-3.5 h-3.5" /></div>
-              <div className="min-w-0"><div className="text-[11px] font-bold text-slate-700 leading-tight">{item.new_status ? `${item.name} moved to ${STATUS_LABEL[item.new_status] || item.new_status}` : `${item.name} application updated`}</div><div className="text-[10px] text-slate-400 mt-0.5">By {item.actor_name || "System"} • {relativeTime(item.event_at)}</div></div>
-            </Link>)}</div>}
-          </Card>
-        </aside>
-      </div>
-    </div>
-  );
+    <Card className="mt-4 overflow-hidden"><div className="p-4 md:p-5 flex items-center justify-between gap-3"><SectionTitle title="Latest Applications" action={<span className="text-[10px] font-bold text-slate-400">Showing {Math.min(rows.length,8)} of {rows.length}</span>}/></div><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-sm"><thead><tr className="border-y border-slate-100 bg-slate-50/60 text-[10px] uppercase tracking-wider text-slate-400"><th className="text-left font-bold px-5 py-3">Candidate</th><th className="text-left font-bold px-3 py-3">Position</th><th className="text-left font-bold px-3 py-3">Status</th><th className="text-left font-bold px-3 py-3">Applied</th><th className="text-left font-bold px-3 py-3">Interview</th><th className="text-right font-bold px-5 py-3">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{loading?<tr><td colSpan="6" className="p-10 text-center text-slate-400">Loading applications…</td></tr>:rows.length===0?<tr><td colSpan="6" className="p-10 text-center text-slate-400">No applications match the current filters.</td></tr>:rows.slice(0,8).map(r=><tr key={r.id} className="hover:bg-slate-50/70"><td className="px-5 py-3.5"><Link to={`/recruitment/${r.id}`} className="flex items-center gap-3"><div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-black text-white" style={{background:STATUS_COLOR[r.status]||ROYAL}}>{initials(r.name)}</div><div className="min-w-0"><div className="font-bold text-slate-800 truncate">{r.name}</div><div className="text-[11px] text-slate-400 truncate">{r.email} • {r.phone}</div><div className="text-[10px] font-mono text-slate-300">{r.application_number}</div></div></Link></td><td className="px-3 py-3.5 text-xs font-semibold text-slate-600 max-w-[180px]">{r.job_title||"—"}</td><td className="px-3 py-3.5"><StatusBadge status={r.status}/></td><td className="px-3 py-3.5 text-xs text-slate-500 whitespace-nowrap">{fmtDate(r.applied_at)}</td><td className="px-3 py-3.5 text-xs text-slate-500 whitespace-nowrap">{r.interview_date?<><div className="font-semibold text-slate-700">{fmtDate(r.interview_date)}</div><div>{fmtTime(r.interview_time)}</div></>:"—"}</td><td className="px-5 py-3.5 text-right"><Link to={`/recruitment/${r.id}`} className="inline-flex items-center gap-1.5 text-xs font-bold" style={{color:ROYAL}}>Open <ArrowRight className="w-3.5 h-3.5"/></Link>{r.email&&<a href={`mailto:${r.email}`} className="ml-3 inline-flex items-center text-slate-400 hover:text-blue-700" title="Email"><Mail className="w-4 h-4"/></a>}</td></tr>)}</tbody></table></div><div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between"><span className="text-xs text-slate-400">Showing {Math.min(rows.length,8)} of {rows.length} filtered applications</span><button type="button" onClick={()=>{setQ("");setStatus("");setJobOpeningId("");}} className="text-xs font-bold" style={{color:ROYAL}}>Clear filters</button></div></Card>
+  </div>;
 }
