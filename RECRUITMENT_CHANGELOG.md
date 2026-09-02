@@ -65,6 +65,7 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 - Bulk status changes use the existing `change_application_status()` RPC for every selected application, preserving the normal audit/history workflow. Interview Scheduled requires a date/time, and Joining Confirmed requires a joining date.
 - Selected/Hired KPI/filter groups `selected` and `joining` applications so the KPI is directly actionable.
 - Recent Activity reuses `application_status_history`; no activity table was created.
+- **Search & Filters panel is positioned at the absolute bottom of the dashboard, after the Latest Applications queue, while retaining all existing controls and behavior.**
 - No new Supabase tables, columns, RPCs, or Edge Functions were added for this dashboard pass.
 
 ### Brand assets
@@ -79,6 +80,13 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+### 2026-09-02 — ChatGPT
+- **Moved the complete Recruitment Search & Filters panel to the very bottom of the dashboard page.**
+- Moved the entire panel containing search, status, position, interview, applied-date, export, and clear-filter controls so it appears after the Latest Applications section.
+- Preserved all existing filter state, pagination, export, bulk actions, email/WhatsApp actions, KPI behavior, and Supabase logic.
+- **Supabase:** no schema/RPC/Edge Function changes.
+- **Git commit:** `cc552d5c99b5acc77f91bde83ea5515f6437f1c8`.
+
 ### 2026-09-02 — ChatGPT
 - **Made the Recruitment Command Center fully actionable from the dashboard.**
 - Made all five top KPI cards clickable so management can immediately open the corresponding application queue.
