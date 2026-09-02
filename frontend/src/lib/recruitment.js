@@ -77,7 +77,10 @@ export async function listApplications({ q = "", status = "", job_opening_id = "
   if (status === "selected_hired") query = query.in("status", ["selected", "joining"]);
   else if (status) query = query.eq("status", status);
   if (job_opening_id) query = query.eq("job_opening_id", job_opening_id);
-  if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,application_number.ilike.%${q}%`);
+  // Search is intentionally applied in the dashboard after the joined job title is
+  // available, so position/title search works as well as name/email/phone/ref search.
+  // Keep q in the signature for compatibility with existing callers.
+  void q;
   const rows = thr(await query);
   return rows.map(r => ({ ...r, job_title: r.job_opening?.title, interviewer_name: r.interviewer_employee?.name }));
 }
