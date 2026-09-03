@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Search, Loader2, CheckCircle2, XCircle, Hash, Phone as PhoneIcon, Facebook, Instagram, AtSign, Youtube } from "lucide-react";
+import { Search, Loader2, CheckCircle2, XCircle, Hash, Phone as PhoneIcon, Facebook, Instagram, AtSign, Youtube, Sparkles, Briefcase, CalendarDays, Clock3, MapPin, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-const LOGO = "https://emp.sankalpdesign.com/sankalp-group-logo-email.png"; // dedicated recruitment brand logo — same asset used in emails
 import { checkApplicationStatus } from "@/lib/recruitment";
 
+const LOGO = "/sankalp-group-logo-email.png";
 const ROYAL = "#0D47A1";
 const ORANGE = "#FF6A00";
 const GOOGLE_BUSINESS_URL = "https://share.google/STNTYyQmAtCLrH4fB";
@@ -13,158 +13,28 @@ const SOCIALS = [
   { Icon: AtSign, href: "https://www.threads.com/@sankalp_interior_solution" },
   { Icon: Youtube, href: "https://www.youtube.com/@SankalpInterior" },
 ];
-
-const STATUS_LABEL = {
-  new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled",
-  interviewed: "Interviewed", selected: "Selected", rejected: "Not Selected", on_hold: "On Hold",
-  joining: "Joining Confirmed",
-};
-const STATUS_COLOR = {
-  new: "#1976D2", shortlisted: "#FF6A00", interview_scheduled: "#7C4DFF",
-  interviewed: "#1976D2", selected: "#10B981", rejected: "#607D8B",
-  on_hold: "#94A3B8", joining: "#10B981",
-};
+const STATUS_LABEL = { new: "New", shortlisted: "Shortlisted", interview_scheduled: "Interview Scheduled", interviewed: "Interviewed", selected: "Selected", rejected: "Not Selected", on_hold: "On Hold", joining: "Joining Confirmed" };
+const STATUS_COLOR = { new: "#1976D2", shortlisted: ORANGE, interview_scheduled: "#7C4DFF", interviewed: "#0284C7", selected: "#10B981", rejected: "#64748B", on_hold: "#94A3B8", joining: "#059669" };
 
 export default function PublicStatus() {
   const [form, setForm] = useState({ application_number: "", contact: "" });
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
-  const [notFound, setNotFound] = useState(false);
-
-  const isEmail = (v) => v.includes("@");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true); setResult(null); setNotFound(false);
-    try {
-      const contact = form.contact.trim();
-      const email = isEmail(contact) ? contact : null;
-      const phone = isEmail(contact) ? null : contact;
-      const r = await checkApplicationStatus(form.application_number, email, phone);
-      if (!r) setNotFound(true); else setResult(r);
-    } catch (err) {
-      toast.error(err.message || "Lookup failed");
-    } finally { setBusy(false); }
+  const [busy, setBusy] = useState(false), [result, setResult] = useState(null), [notFound, setNotFound] = useState(false);
+  const isEmail = v => v.includes("@");
+  const submit = async e => {
+    e.preventDefault(); setBusy(true); setResult(null); setNotFound(false);
+    try { const contact = form.contact.trim(); const email = isEmail(contact) ? contact : null; const phone = isEmail(contact) ? null : contact; const r = await checkApplicationStatus(form.application_number, email, phone); if (!r) setNotFound(true); else setResult(r); }
+    catch (err) { toast.error(err.message || "Lookup failed"); } finally { setBusy(false); }
   };
-
-  return (
-    <div className="min-h-screen bg-[#F3F6FC] flex flex-col">
-      <header className="bg-white border-b border-slate-100">
-        <div className="max-w-[1160px] mx-auto px-5 py-3 flex items-center justify-between">
-          <img src={LOGO} alt="Sankalp Group" className="h-10 object-contain" />
-          <a href="/apply" className="text-sm font-semibold" style={{ color: ROYAL }}>← Back to Application</a>
-        </div>
-      </header>
-
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(120deg, #0A2E6E 0%, ${ROYAL} 55%, #123E96 100%)` }}>
-        <div className="absolute -top-10 -left-10 w-64 h-64 opacity-90 pointer-events-none" style={{
-          background: `repeating-linear-gradient(-45deg, ${ROYAL} 0 26px, transparent 26px 30px, ${ORANGE} 30px 46px, transparent 46px 50px)`,
-          maskImage: "linear-gradient(135deg, black 40%, transparent 75%)",
-          WebkitMaskImage: "linear-gradient(135deg, black 40%, transparent 75%)",
-        }} />
-        <div className="relative max-w-[1160px] mx-auto px-5 py-10 md:py-14">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white">Check Application Status</h1>
-          <p className="text-slate-200 text-sm mt-2 max-w-md">Track where your application stands, in real time.</p>
-        </div>
-      </section>
-
-      <div className="flex-1 w-full flex items-center justify-center px-5 py-10 -mt-8">
-      <div className="max-w-md w-full">
-        <form onSubmit={submit} className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
-          <FI label="Application Number *">
-            <div className="relative">
-              <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input required placeholder="APP-2026-0001" className={inputCls} value={form.application_number} onChange={e => setForm({ ...form, application_number: e.target.value })} />
-            </div>
-          </FI>
-          <FI label="Phone or Email *">
-            <div className="relative">
-              <PhoneIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input required placeholder="Phone number or email address" className={inputCls} value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} />
-            </div>
-          </FI>
-          <button disabled={busy} className="w-full h-12 rounded-xl text-white font-bold flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: `linear-gradient(90deg, ${ROYAL}, #1D5FC9)` }}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4" /> Check Status</>}
-          </button>
-        </form>
-
-        {notFound && (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mt-4 text-center text-sm text-slate-600 flex flex-col items-center gap-2">
-            <XCircle className="w-8 h-8 text-slate-400" />
-            No matching application found. Please double-check your application number and phone/email.
-          </div>
-        )}
-
-        {result && (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mt-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-extrabold text-slate-800">{result.name}</div>
-                <div className="text-xs text-slate-500 font-mono">{result.application_number} • {result.job_title}</div>
-              </div>
-              <span className="text-[11px] font-bold uppercase px-3 py-1 rounded-full text-white" style={{ background: STATUS_COLOR[result.status] || "#64748B" }}>
-                {STATUS_LABEL[result.status] || result.status}
-              </span>
-            </div>
-
-            {result.status === "interview_scheduled" && (
-              <div className="text-sm bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1">
-                <div className="font-semibold text-xs text-slate-500 uppercase mb-1">Interview Details</div>
-                <div><span className="text-slate-400">Date:</span> {result.interview_date}</div>
-                <div><span className="text-slate-400">Time:</span> {result.interview_time}</div>
-                <div><span className="text-slate-400">Mode:</span> {result.interview_mode}</div>
-              </div>
-            )}
-            {result.status === "joining" && result.joining_date && (
-              <div className="text-sm bg-slate-50 border border-slate-100 rounded-xl p-3">
-                <span className="text-slate-400">Joining Date:</span> {result.joining_date}
-              </div>
-            )}
-
-            <div>
-              <div className="font-semibold text-xs text-slate-500 uppercase mb-1.5">Submitted Application Details</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                <div><span className="text-slate-400">Email:</span> {result.email}</div>
-                <div><span className="text-slate-400">Phone:</span> {result.phone}</div>
-                <div><span className="text-slate-400">Experience:</span> {result.experience_years ?? "—"} yrs</div>
-                <div><span className="text-slate-400">Current Company:</span> {result.current_company || "—"}</div>
-                <div><span className="text-slate-400">Education:</span> {result.education || "—"}</div>
-                <div><span className="text-slate-400">Expected Salary:</span> {result.expected_salary ? `₹${result.expected_salary}` : "—"}</div>
-              </div>
-              {result.current_address && <div className="text-sm mt-1"><span className="text-slate-400">Address:</span> {result.current_address}</div>}
-              {result.cover_note && <div className="text-sm mt-1"><span className="text-slate-400">Cover Note:</span> {result.cover_note}</div>}
-            </div>
-
-            <div className="text-xs text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-100"><CheckCircle2 className="w-3.5 h-3.5" /> Applied on {new Date(result.applied_at).toLocaleDateString()}</div>
-          </div>
-        )}
-      </div>
-      </div>
-
-      <footer style={{ background: ROYAL }} className="text-white mt-10">
-        <div className="max-w-[1160px] mx-auto px-5 py-8 flex flex-wrap items-start justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="bg-white rounded-lg p-1.5"><img src={LOGO} alt="" className="h-8 object-contain" /></div>
-              <div className="font-bold">Sankalp Group &amp; Business Solutions</div>
-            </div>
-            <div className="text-blue-100 text-xs mt-2 max-w-xs">Building inspiring spaces. Delivering trusted solutions.</div>
-            <div className="flex gap-2 mt-3">
-              {SOCIALS.map(({ Icon, href }, i) => (
-                <a key={i} href={href} target="_blank" rel="noreferrer" className="w-7 h-7 rounded-full bg-white grid place-items-center hover:opacity-80 transition"><Icon className="w-3.5 h-3.5" style={{ color: ROYAL }} /></a>
-              ))}
-            </div>
-          </div>
-          <div className="text-xs text-blue-50 space-y-1">
-            <div className="font-bold text-[11px] tracking-wider mb-1" style={{ color: ORANGE }}>CONTACT US</div>
-            <a href={GOOGLE_BUSINESS_URL} target="_blank" rel="noreferrer" className="block hover:underline">Kolkata, West Bengal, India</a>
-            <div>+91 97482 97025</div>
-            <div>care.sankalpgrp@gmail.com</div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
+  return <div className="min-h-screen bg-[#F3F6FC] flex flex-col text-slate-800">
+    <header className="bg-white border-b border-slate-100 relative z-10"><div className="max-w-[1180px] mx-auto px-5 md:px-7 h-[78px] flex items-center justify-between"><a href="/apply"><img src={LOGO} alt="Sankalp Group & Business Solutions" className="w-[205px] md:w-[245px]" /></a><a href="/apply" className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-2.5 text-xs md:text-sm font-bold bg-white hover:bg-blue-50" style={{ borderColor: `${ROYAL}70`, color: ROYAL }}><ArrowRight className="w-4 h-4 rotate-180" /> Back to Application</a></div></header>
+    <section className="relative overflow-hidden bg-white"><div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 to-blue-50/50"/><div className="absolute right-0 top-0 w-full md:w-[55%] h-full bg-cover bg-center opacity-85" style={{ backgroundImage: "linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,.86) 20%, rgba(255,255,255,.15) 68%), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=85')" }}/><div className="absolute left-0 top-0 w-48 h-24" style={{ background: `linear-gradient(135deg, ${ROYAL} 0 42%, transparent 42% 100%)` }}/><div className="absolute left-0 top-0 w-64 h-28" style={{ background: `linear-gradient(135deg, transparent 0 32%, ${ORANGE} 32% 47%, transparent 47% 100%)` }}/><div className="relative max-w-[1180px] mx-auto px-5 md:px-7 py-12 md:py-16 min-h-[285px] flex items-center"><div className="max-w-[620px] pt-3"><div className="text-xs font-extrabold uppercase tracking-[.2em] mb-3" style={{ color: ORANGE }}><Sparkles className="inline w-4 h-4 mr-1 -mt-1"/> Sankalp Group Careers</div><h1 className="text-4xl md:text-5xl font-black leading-tight" style={{ color: ROYAL }}>Check Your<br/>Application Status</h1><div className="h-1 w-16 my-4 rounded-full" style={{ background: ORANGE }}/><p className="text-base text-slate-600 max-w-lg">Track your recruitment journey and stay updated on your application with Sankalp Group.</p></div></div></section>
+    <main className="relative max-w-[1120px] w-full mx-auto px-4 md:px-7 -mt-8 pb-14"><div className="grid lg:grid-cols-[.8fr_1.2fr] gap-5 items-start"><div><form onSubmit={submit} className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(13,71,161,.12)] border border-blue-100 p-6 md:p-7"><div className="flex items-center gap-3 mb-5"><div className="w-11 h-11 rounded-xl bg-blue-50 grid place-items-center"><Search className="w-5 h-5" style={{ color: ROYAL }}/></div><div><h2 className="font-black text-lg" style={{ color: ROYAL }}>Find Your Application</h2><p className="text-xs text-slate-400">Use your application number and registered contact.</p></div></div><FI label="Application Number *"><div className="relative"><Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-400"/><input required placeholder="APP-2026-0001" className={inputCls} value={form.application_number} onChange={e=>setForm({...form,application_number:e.target.value})}/></div></FI><FI label="Phone or Email *"><div className="relative"><PhoneIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-400"/><input required placeholder="Phone number or email address" className={inputCls} value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></div></FI><button disabled={busy} className="w-full py-3.5 rounded-xl text-white font-black flex items-center justify-center gap-2 mt-5 disabled:opacity-60 hover:brightness-105" style={{ background:`linear-gradient(90deg, ${ROYAL}, #1D5FC9)` }}>{busy?<Loader2 className="w-5 h-5 animate-spin"/>:<><Search className="w-4 h-4"/> Check Status</>}</button><div className="text-[11px] text-slate-400 text-center mt-4">Your application details are only shown after a matching application number and contact are verified.</div></form>{notFound&&<div className="bg-white rounded-2xl border border-amber-200 p-5 mt-4 text-center"><XCircle className="w-8 h-8 mx-auto text-slate-400"/><div className="font-bold mt-2 text-slate-700">No matching application found</div><p className="text-xs text-slate-500 mt-1">Please double-check your application number and registered phone/email.</p></div>}</div>
+      <div>{result?<ResultCard result={result}/>:<div className="bg-white/70 rounded-3xl border border-blue-100 p-7 md:p-9"><div className="w-14 h-14 rounded-2xl bg-blue-50 grid place-items-center mb-4"><Briefcase className="w-7 h-7" style={{ color: ROYAL }}/></div><h2 className="text-xl font-black" style={{ color: ROYAL }}>Your recruitment journey</h2><p className="text-sm text-slate-500 mt-2">Once your application is found, this area will show your current status, interview information, joining date and submitted profile details.</p><div className="grid sm:grid-cols-2 gap-3 mt-6"><Info icon={Search} title="Application received" text="Your submitted application is securely stored."/><Info icon={CalendarDays} title="Interview updates" text="Scheduled interview details appear here."/><Info icon={Clock3} title="Live status" text="See the latest recruitment stage."/><Info icon={CheckCircle2} title="Joining" text="Joining information appears when confirmed."/></div></div>}</div></div></main>
+    <footer className="text-white mt-auto" style={{ background:`linear-gradient(120deg,#06295E,${ROYAL})` }}><div className="max-w-[1180px] mx-auto px-5 md:px-7 py-9 grid md:grid-cols-3 gap-7 items-center"><div><img src={LOGO} alt="Sankalp Group" className="w-[210px] bg-white rounded-lg p-2"/><div className="text-xs text-blue-100 mt-3">Sankalp Group & Business Solutions<br/>Building Dreams. Creating Spaces.<br/>Careers • Opportunities • Growth</div></div><div className="text-sm md:text-center"><div className="font-extrabold mb-2" style={{ color: ORANGE }}>CONTACT US</div><a href={GOOGLE_BUSINESS_URL} target="_blank" rel="noreferrer" className="text-blue-100 hover:text-white">Kolkata, West Bengal, India</a><div className="text-blue-100 mt-1">+91 97482 97025</div><div className="text-blue-100">care.sankalpgrp@gmail.com</div></div><div className="md:text-right"><div className="font-extrabold mb-2">Follow Us</div><div className="flex md:justify-end gap-2">{SOCIALS.map(({Icon,href},i)=><a key={i} href={href} target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-white grid place-items-center hover:scale-105 transition"><Icon className="w-4 h-4" style={{ color: ROYAL }}/></a>)}</div></div></div><div className="border-t border-white/10 text-center text-[11px] text-blue-100 py-4">© 2026 Sankalp Group. All rights reserved. <span className="mx-2">|</span> Privacy Policy <span className="mx-2">|</span> Terms & Conditions</div></footer>
+  </div>;
 }
-const inputCls = "w-full h-[52px] pl-10 pr-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 text-sm transition bg-white";
-const FI = ({ label, children }) => <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-500 uppercase">{label}</label>{children}</div>;
+function ResultCard({ result }) { const color=STATUS_COLOR[result.status]||"#64748B"; return <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(13,71,161,.12)] border border-blue-100 overflow-hidden"><div className="p-6 md:p-7" style={{ background:`linear-gradient(120deg, ${ROYAL}, #1D5FC9)` }}><div className="text-blue-100 text-[10px] uppercase tracking-[.18em] font-black">Application Status</div><div className="flex flex-wrap items-center justify-between gap-3 mt-2"><div><h2 className="text-xl font-black text-white">{result.name}</h2><div className="text-xs text-blue-100 font-mono mt-1">{result.application_number}</div></div><span className="text-[11px] font-black uppercase px-3 py-2 rounded-full bg-white" style={{ color }}>{STATUS_LABEL[result.status]||result.status}</span></div><div className="text-xs text-blue-100 mt-3">{result.job_title}</div></div><div className="p-6 md:p-7 space-y-5">{result.status === "interview_scheduled"&&<div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4"><div className="text-[11px] font-black uppercase tracking-wide text-purple-700 mb-3">Interview Details</div><div className="grid sm:grid-cols-3 gap-3"><Meta icon={CalendarDays} label="Date" value={result.interview_date}/><Meta icon={Clock3} label="Time" value={result.interview_time}/><Meta icon={Briefcase} label="Mode" value={result.interview_mode}/></div></div>}{result.status === "joining"&&result.joining_date&&<div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div className="text-[11px] font-black uppercase tracking-wide text-emerald-700">Joining Date</div><div className="font-bold text-slate-800 mt-1">{result.joining_date}</div></div>}<div><div className="text-[11px] font-black uppercase tracking-wide mb-3" style={{ color: ROYAL }}>Submitted Application Details</div><div className="grid sm:grid-cols-2 gap-3">{[["Email",result.email],["Phone",result.phone],["Experience",result.experience_years!=null?`${result.experience_years} yrs`:"—"],["Current Company",result.current_company||"—"],["Education",result.education||"—"],["Expected Salary",result.expected_salary?`₹${result.expected_salary}`:"—"]].map(([l,v])=><div key={l} className="bg-slate-50 rounded-xl px-3 py-2.5"><div className="text-[10px] text-slate-400 uppercase font-bold">{l}</div><div className="text-xs font-semibold text-slate-700 mt-0.5 break-words">{v}</div></div>)}</div>{result.current_address&&<div className="bg-slate-50 rounded-xl px-3 py-2.5 mt-3"><div className="text-[10px] text-slate-400 uppercase font-bold">Address</div><div className="text-xs text-slate-700 mt-0.5">{result.current_address}</div></div>}{result.cover_note&&<div className="bg-slate-50 rounded-xl px-3 py-2.5 mt-3"><div className="text-[10px] text-slate-400 uppercase font-bold">Cover Note</div><div className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">{result.cover_note}</div></div>}</div><div className="text-xs text-slate-400 flex items-center gap-1.5 pt-3 border-t border-slate-100"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500"/> Applied on {new Date(result.applied_at).toLocaleDateString()}</div></div></div>; }
+const inputCls="w-full h-[52px] pl-10 pr-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm bg-white";
+const FI=({label,children})=><div className="space-y-1.5 mb-4"><label className="text-xs font-bold text-slate-600">{label}</label>{children}</div>;
+function Meta({icon:Icon,label,value}){return <div className="bg-white rounded-xl border border-purple-100 px-3 py-2.5"><Icon className="w-4 h-4 text-purple-600"/><div className="text-[10px] text-slate-400 uppercase font-bold mt-1">{label}</div><div className="text-xs font-bold text-slate-700 mt-0.5">{value||"—"}</div></div>}
+function Info({icon:Icon,title,text}){return <div className="rounded-2xl bg-white border border-slate-100 p-4"><Icon className="w-5 h-5" style={{ color: ROYAL }}/><div className="font-bold text-sm mt-2">{title}</div><div className="text-xs text-slate-500 mt-1">{text}</div></div>}
