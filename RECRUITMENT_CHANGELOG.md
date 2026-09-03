@@ -56,6 +56,13 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 - `lib/recruitment.js` — all recruitment data-access functions, including dashboard stats wrapper
 - `components/PhotoCapture.jsx`, `components/LocationMapTile.jsx` — shared UI
 
+### Public Recruitment Portal
+- `/apply` and `/status` now share a premium Sankalp careers visual system based on the approved reference design: white/light-blue canvas, Royal Blue `#0D47A1`, Orange `#FF6A00`, diagonal brand accents, rounded cards, subtle shadows, prominent branded header, career hero, and navy branded footer.
+- `/apply` keeps the existing production application workflow intact: live open positions, duplicate check, CV/photo upload, camera capture, mandatory location capture, declaration, submission RPC, and submitted-email trigger.
+- `/status` keeps the existing public status lookup RPC and displays status, interview details, joining date, and submitted application information in the redesigned layout.
+- Public pages use the existing deployed recruitment logo asset at `/sankalp-group-logo-email.png` so branding remains on a same-origin production asset.
+- The visual redesign adds no Supabase tables, columns, RPCs, or Edge Functions.
+
 ### Recruitment Dashboard
 - `/recruitment` is a premium **Recruitment Command Center** using live production data only.
 - Management view includes clickable KPI cards for Total Applications, New, Shortlisted, Interviews Scheduled, and Selected/Hired.
@@ -65,7 +72,7 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 - Bulk status changes use the existing `change_application_status()` RPC for every selected application, preserving the normal audit/history workflow. Interview Scheduled requires a date/time, and Joining Confirmed requires a joining date.
 - Selected/Hired KPI/filter groups `selected` and `joining` applications so the KPI is directly actionable.
 - Recent Activity reuses `application_status_history`; no activity table was created.
-- **Search & Filters panel is positioned at the absolute bottom of the dashboard, after the Latest Applications queue, while retaining all existing controls and behavior.**
+- Search & Filters panel is positioned at the absolute bottom of the dashboard, after the Latest Applications queue, while retaining all existing controls and behavior.
 - No new Supabase tables, columns, RPCs, or Edge Functions were added for this dashboard pass.
 
 ### Brand assets
@@ -80,6 +87,15 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## Change Log (newest first)
+### 2026-09-03 — ChatGPT
+- **Redesigned the public recruitment application and status pages to match the approved Sankalp careers reference design.**
+- `/apply` now uses the reference-inspired premium layout: branded header with Check Status CTA, career hero with architectural imagery, career benefit pills, structured five-section application cards, prominent Submit Application CTA, and branded footer.
+- `/status` now uses the same visual language with branded header, career hero, application lookup card, richer result presentation, and matching footer.
+- Preserved existing production functionality: open-position loading, duplicate checking, CV/photo upload, camera capture, mandatory geolocation, application submission, submitted-email trigger, status lookup, interview details, joining date, and submitted profile details.
+- No Supabase schema, RPC, RLS, or Edge Function changes.
+- **Git commits:** `b6561a14d5145669bda274117a54e77da7f14afd` (`Apply.jsx`) and `b0dfce71cb4709189a75c062b4152a142483ef8c` (`PublicStatus.jsx`).
+- Public pages use the existing same-origin `/sankalp-group-logo-email.png` asset for production-safe branding.
+
 ### 2026-09-02 — ChatGPT
 - **Moved the complete Recruitment Search & Filters panel to the very bottom of the dashboard page.**
 - Moved the entire panel containing search, status, position, interview, applied-date, export, and clear-filter controls so it appears after the Latest Applications section.
@@ -147,4 +163,4 @@ Side paths: `on_hold` (→ Reassign to a different opening), `rejected` (termina
 ---
 
 ## For ChatGPT (or whoever reads this next)
-If you're an AI assistant working on this repo: please read the "Current State" section above before changing anything in the recruitment module, and add a dated entry to the Change Log when you're done — especially if you touch Supabase (tables, columns, RPCs, Edge Functions), since none of that shows up in git.
+If you're an AI assistant working on the recruitment module: please read the "Current State" section above before changing anything, and add a dated entry to the Change Log when you're done — especially if you touch Supabase (tables, columns, RPCs, Edge Functions), since none of that shows up in git.
