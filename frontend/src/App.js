@@ -19,6 +19,7 @@ import PublicStatus from "@/pages/PublicStatus";
 import Recruitment from "@/pages/Recruitment";
 import ApplicationDetail from "@/pages/ApplicationDetail";
 import JobOpenings from "@/pages/JobOpenings";
+import TrackingPage from "@/pages/TrackingPage";
 import "@/App.css";
 
 function Protected({ children, roles }) {
@@ -44,6 +45,7 @@ function App() {
             <Route path="visits/new" element={<AddVisit />} />
             <Route path="visits/:id" element={<VisitDetail />} />
             <Route path="attendance" element={<AttendancePage />} />
+            <Route path="tracking" element={<TrackingPage />} />
             <Route path="employees" element={<Protected roles={["admin","manager"]}><Employees /></Protected>} />
             <Route path="employees/new" element={<Protected roles={["admin"]}><EmployeeForm /></Protected>} />
             <Route path="employees/:id" element={<Protected roles={["admin","manager"]}><EmployeeForm /></Protected>} />
