@@ -5,7 +5,7 @@ import {
   getTrackingDashboard, startTrackingShift, endTrackingShift, recordTrackingLocation,
 } from "@/lib/tracking";
 import {
-  MapPinned, Navigation, Clock3, ShieldCheck, RefreshCw, LogIn, LogOut,
+  MapPinned, Clock3, ShieldCheck, RefreshCw, LogIn, LogOut,
   AlertTriangle, LoaderCircle, ExternalLink, Users, MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -173,6 +173,7 @@ function EmployeeTracking({ user }) {
           </label>
         )}
         {error && <div className="mt-4 text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-3">{error}</div>}
+      {error && (error.includes("tracking_shifts") || error.includes("start_tracking_shift") || error.includes("record_employee_location") || error.includes("does not exist")) && <MigrationNotice />}
         <div className="mt-5 flex flex-wrap gap-3">
           {!shift ? (
             <button onClick={checkIn} disabled={busy || loading} className="inline-flex items-center gap-2 rounded-lg bg-[#1E3A8A] text-white px-5 py-3 font-bold disabled:opacity-50">
@@ -266,7 +267,6 @@ export default function TrackingPage() {
         <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-[#F97316]" />
         <div className="flex items-center gap-3"><MapPinned className="w-8 h-8 text-[#FFA94D]" /><div><h1 className="font-heading text-2xl md:text-3xl font-extrabold">Sankalp Employee Tracking</h1><p className="text-sm text-white/80 mt-1">Shift check-in, check-out and transparent location updates</p></div></div>
       </div>
-      <MigrationNotice />
       {isManager ? <ManagerTracking /> : <EmployeeTracking user={user} />}
     </div>
   );
