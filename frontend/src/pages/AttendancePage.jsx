@@ -430,8 +430,45 @@ function EmployeeAttendance({ user }) {
       const t = just.find(a => a.date === todayISO());
       if (t) await updateAttendance(t.id, { attendance_type: "office", location_label: label, distance_m: distance, under_review: underReview });
     } catch { /* schema mismatch */ }
+
+    // Start tracking only after a successful, in-geofence attendance punch.
+    // Attendance itself remains saved even if tracking schema is not deployed yet.
+    const verifiedOfficePunch = Boolean(
+      !underReview &&
+      (status === "present" || status === "late") &&
+      gps?.latitude != null &&
+      gps?.longitude != null &&
+      settings?.office_lat != null &&
+      settings?.office_lng != null &&
+      isInsideOffice(gps.latitude, gps.longitude, settings)
+    );
+    if (verifiedOfficePunch) {
+      try {
+        const { data: openShift, error: shiftLookupError } = await supabase
+          .from("tracking_shifts")
+          .select("id")
+          .eq("employee_id", user.id)
+          .is("checked_out_at", null)
+          .limit(1)
+          .maybeSingle();
+        if (shiftLookupError) throw shiftLookupError;
+        if (!openShift) {
+          await supabase.rpc("start_tracking_shift", {
+            p_site_label: settings?.name ? `Office: ${settings.name}` : "Office attendance",
+            p_latitude: gps.latitude,
+            p_longitude: gps.longitude,
+          });
+        }
+        toast.success("Attendance saved. Tracking shift started automatically.");
+      } catch (trackingError) {
+        // Never roll back or misreport a valid attendance because tracking is unavailable.
+        console.warn("Attendance saved, but automatic tracking start was unavailable:", trackingError?.message);
+        toast("Attendance saved. Tracking will start when the tracking service is enabled.", { icon: "ℹ️" });
+      }
+    }
+
     if (underReview) toast("Submitted for review (outside geofence)", { icon: "⚠️" });
-    else toast.success(`Marked ${STATUS_LABEL[status] || status}`);
+    else if (!verifiedOfficePunch) toast.success(`Marked ${STATUS_LABEL[status] || status}`);
     await loadMe();
   };
 
