@@ -48,7 +48,8 @@ create table if not exists public.tracking_shifts (
   constraint tracking_shifts_check_in_longitude_range check (check_in_longitude is null or check_in_longitude between -180 and 180),
   constraint tracking_shifts_check_out_latitude_range check (check_out_latitude is null or check_out_latitude between -90 and 90),
   constraint tracking_shifts_check_out_longitude_range check (check_out_longitude is null or check_out_longitude between -180 and 180),
-  constraint tracking_shifts_checkout_after_checkin check (checked_out_at is null or checked_out_at >= checked_in_at)
+  constraint tracking_shifts_checkout_after_checkin check (checked_out_at is null or checked_out_at >= checked_in_at),
+  constraint tracking_shifts_id_employee_unique unique (id, employee_id)
 );
 
 create unique index if not exists tracking_one_open_shift_per_employee
@@ -76,9 +77,7 @@ create table if not exists public.employee_locations (
     deferrable initially immediate
 );
 
--- Composite target needed for the shift/employee consistency FK above.
-create unique index if not exists tracking_shifts_id_employee_unique
-  on public.tracking_shifts(id, employee_id);
+-- The composite unique constraint above ensures every location's shift belongs to the same employee.
 create index if not exists employee_locations_employee_time_idx
   on public.employee_locations(employee_id, captured_at desc);
 create index if not exists employee_locations_shift_time_idx
@@ -235,21 +234,12 @@ begin
   where s.id = p_shift_id
     and s.employee_id = v_employee_id
     and v_captured_at >= s.checked_in_at
-    and v_captured_at <= coalesce(s.checked_out_at, now());
+    and v_captured_at <= coalesce(s.checked_out_at, now())
+  returning id into v_location_id;
 
   if not found then
     raise exception 'Location must belong to this employee and an authorized shift time';
   end if;
-
-  select l.id into v_location_id
-  from public.employee_locations l
-  where l.shift_id = p_shift_id
-    and l.employee_id = v_employee_id
-    and l.captured_at = v_captured_at
-    and l.latitude = p_latitude
-    and l.longitude = p_longitude
-  order by l.received_at desc
-  limit 1;
 
   return v_location_id;
 end;
