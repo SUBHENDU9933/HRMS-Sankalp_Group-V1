@@ -99,8 +99,8 @@ create policy employee_locations_manager_select on public.employee_locations
   using (public.is_manager_or_admin());
 
 -- No direct INSERT/UPDATE/DELETE policies. Writes go through validated SECURITY DEFINER RPCs.
-revoke all on public.tracking_shifts from anon, authenticated;
-revoke all on public.employee_locations from anon, authenticated;
+revoke all on public.tracking_shifts from public, anon, authenticated;
+revoke all on public.employee_locations from public, anon, authenticated;
 grant select on public.tracking_shifts to authenticated;
 grant select on public.employee_locations to authenticated;
 
