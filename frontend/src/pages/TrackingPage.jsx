@@ -59,6 +59,7 @@ function EmployeeTracking({ user }) {
   const [busy, setBusy] = useState(false);
   const [siteLabel, setSiteLabel] = useState("");
   const [error, setError] = useState("");
+  const [schemaReady, setSchemaReady] = useState(false);
   const lastPingAt = useRef(null);
 
   const loadShift = useCallback(async () => {
@@ -73,9 +74,11 @@ function EmployeeTracking({ user }) {
       .limit(1)
       .maybeSingle();
     if (queryError) {
+      setSchemaReady(false);
       setError(queryError.message || "Tracking service is not ready.");
       setShift(null);
     } else {
+      setSchemaReady(true);
       setShift(data || null);
     }
     setLoading(false);
@@ -176,7 +179,7 @@ function EmployeeTracking({ user }) {
       {error && (error.includes("tracking_shifts") || error.includes("start_tracking_shift") || error.includes("record_employee_location") || error.includes("does not exist")) && <MigrationNotice />}
         <div className="mt-5 flex flex-wrap gap-3">
           {!shift ? (
-            <button onClick={checkIn} disabled={busy || loading} className="inline-flex items-center gap-2 rounded-lg bg-[#1E3A8A] text-white px-5 py-3 font-bold disabled:opacity-50">
+            <button onClick={checkIn} disabled={busy || loading || !schemaReady} className="inline-flex items-center gap-2 rounded-lg bg-[#1E3A8A] text-white px-5 py-3 font-bold disabled:opacity-50">
               {busy ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />} ডিউটি শুরু / Check in
             </button>
           ) : (
@@ -190,6 +193,7 @@ function EmployeeTracking({ user }) {
         </div>
       </div>
       <div className="flex gap-2 text-xs text-slate-500"><ShieldCheck className="w-4 h-4 shrink-0" /> GPS কেবল ডিউটি শুরু করার পর ব্যবহৃত হবে। ফোনে Location permission দিতে হবে এবং tracking চালু থাকলে তা এখানে স্পষ্ট দেখানো হবে।</div>
+      {!schemaReady && !loading && <p className="text-xs text-amber-800">Database feature ready না হওয়া পর্যন্ত check-in button বন্ধ থাকবে; location permission চাওয়া হবে না।</p>}
     </div>
   );
 }
